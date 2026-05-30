@@ -1,0 +1,13 @@
+# Clipping4me
+
+> Estúdio de IA que analisa o contexto semântico de podcasts e gera cortes virais otimizados para TikTok, Reels e Shorts.
+
+Clipping4me é um estúdio de corte automático alimentado por inteligência artificial. A plataforma transcreve episódios inteiros, analisa narrativas e ganchos semânticos, e entrega cortes prontos no formato e no tempo ideal para cada rede social. A IA diferencia host e convidado, respeita diretrizes do criador e alinha cada corte às janelas de retenção dos algoritmos de viralização.
+
+## Pages
+
+- [Home](/): Landing page com visão geral do produto, funcionalidades, alinhamento ao algoritmo e roadmap.
+
+## Optional
+
+- [Sitemap](/sitemap.xml): Índice XML de rotas públicas do site.
