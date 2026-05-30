@@ -159,13 +159,13 @@ function writeMock(jobs: Job[]) {
 
 export async function listJobs(): Promise<{ jobs: Job[]; live: boolean }> {
   const live = await tryFetch<{ jobs: Job[] }>("/jobs");
-  if (live) return { jobs: live.jobs, live: true };
+  if (live) return { jobs: live.jobs.map(withAbsoluteUrls), live: true };
   return { jobs: readMock(), live: false };
 }
 
 export async function getJob(id: string): Promise<{ job: Job | null; live: boolean }> {
   const live = await tryFetch<{ job: Job }>(`/jobs/${id}`);
-  if (live) return { job: live.job, live: true };
+  if (live) return { job: withAbsoluteUrls(live.job), live: true };
   const job = readMock().find((j) => j.id === id) ?? null;
   return { job, live: false };
 }
@@ -175,16 +175,44 @@ export interface CreateJobInput {
   source: string;
   instructions: string;
   podcast_title?: string;
+  videoFile?: File | null;
+  srtFile?: File | null;
 }
 
 export async function createJob(
   input: CreateJobInput,
 ): Promise<{ job: Job; live: boolean }> {
-  const live = await tryFetch<{ job: Job }>("/jobs", {
-    method: "POST",
-    body: JSON.stringify(input),
-  });
-  if (live) return { job: live.job, live: true };
+  if (input.kind === "upload" && input.videoFile) {
+    try {
+      const fd = new FormData();
+      fd.append("kind", "upload");
+      fd.append("instructions", input.instructions);
+      if (input.podcast_title) fd.append("podcast_title", input.podcast_title);
+      fd.append("video", input.videoFile);
+      if (input.srtFile) fd.append("srt", input.srtFile);
+      const res = await fetch(`${BACKEND_URL}/jobs/upload`, {
+        method: "POST",
+        body: fd,
+      });
+      if (res.ok) {
+        const data = (await res.json()) as { job: Job };
+        return { job: withAbsoluteUrls(data.job), live: true };
+      }
+    } catch {
+      /* falls through to mock */
+    }
+  } else {
+    const live = await tryFetch<{ job: Job }>("/jobs", {
+      method: "POST",
+      body: JSON.stringify({
+        kind: input.kind,
+        source: input.source,
+        instructions: input.instructions,
+        podcast_title: input.podcast_title,
+      }),
+    });
+    if (live) return { job: withAbsoluteUrls(live.job), live: true };
+  }
 
   // Mock: create + simulate progression.
   const id = `job_${Math.random().toString(36).slice(2, 8)}`;
@@ -202,6 +230,24 @@ export async function createJob(
   writeMock(jobs);
   simulateMockProgress(id);
   return { job, live: false };
+}
+
+function withAbsoluteUrls(job: Job): Job {
+  if (!job.clips) return job;
+  return {
+    ...job,
+    clips: job.clips.map((c) => ({
+      ...c,
+      thumbnail_url: absolutize(c.thumbnail_url),
+      video_url: absolutize(c.video_url),
+    })),
+  };
+}
+
+function absolutize(path?: string): string | undefined {
+  if (!path) return path;
+  if (path.startsWith("http")) return path;
+  return `${BACKEND_URL}${path}`;
 }
 
 export async function openFolder(jobId: string, clipId?: string): Promise<boolean> {

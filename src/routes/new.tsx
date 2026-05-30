@@ -71,7 +71,13 @@ function NewJob() {
         : srtFile
           ? `${videoFile!.name} + ${srtFile.name}`
           : videoFile!.name;
-    const { job } = await createJob({ kind, source, instructions });
+    const { job } = await createJob({
+      kind,
+      source,
+      instructions,
+      videoFile: kind === "upload" ? videoFile : null,
+      srtFile: kind === "upload" ? srtFile : null,
+    });
     navigate({ to: "/jobs/$jobId", params: { jobId: job.id } });
   }
 
