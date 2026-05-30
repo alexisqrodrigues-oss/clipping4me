@@ -51,6 +51,10 @@ class Job(BaseModel):
     created_at: str = Field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
     clips: Optional[List[Clip]] = None
     error: Optional[str] = None
+    # Multi-tenant isolation: every job belongs to the user that created it.
+    # Legacy jobs created before this field existed will have user_id=None;
+    # only admins can see/operate on those (see main.py ownership checks).
+    user_id: Optional[str] = None
 
 
 class CreateJobInput(BaseModel):
