@@ -66,35 +66,41 @@ function normalizeBackendUrl(url: string | null | undefined): string {
   return (url ?? "").trim().replace(/\/+$/, "");
 }
 
-function readUrlFromQuery(): string | null {
-  if (typeof window === "undefined") return null;
-  const params = new URLSearchParams(window.location.search);
-  const candidate = normalizeBackendUrl(params.get("backend"));
-  if (!candidate) return null;
-  params.delete("backend");
-  const next = `${window.location.pathname}${params.toString() ? `?${params.toString()}` : ""}${window.location.hash}`;
-  window.history.replaceState({}, "", next);
-  window.localStorage.setItem(BACKEND_URL_KEY, candidate);
-  return candidate;
-}
-
+/**
+ * Backend URL is fixed via build-time env (VITE_BACKEND_URL). We no longer
+ * accept a `?backend=` query-param override — that allowed an attacker to send
+ * a crafted link that redirected all authenticated requests (including the
+ * Bearer token) to a malicious server.
+ *
+ * If a legacy override is still in localStorage from a previous build, ignore
+ * it and clear it on first read.
+ */
 export function getBackendUrl(): string {
-  if (typeof window === "undefined") return DEFAULT_BACKEND_URL;
-  return (
-    readUrlFromQuery() ||
-    normalizeBackendUrl(window.localStorage.getItem(BACKEND_URL_KEY)) ||
-    DEFAULT_BACKEND_URL
-  );
+  if (typeof window !== "undefined") {
+    // One-time cleanup of any previously-stored override.
+    try {
+      if (window.localStorage.getItem(BACKEND_URL_KEY)) {
+        window.localStorage.removeItem(BACKEND_URL_KEY);
+      }
+      // Strip any stale ?backend= from the URL without persisting it.
+      const params = new URLSearchParams(window.location.search);
+      if (params.has("backend")) {
+        params.delete("backend");
+        const next = `${window.location.pathname}${
+          params.toString() ? `?${params.toString()}` : ""
+        }${window.location.hash}`;
+        window.history.replaceState({}, "", next);
+      }
+    } catch {
+      /* ignore storage errors */
+    }
+  }
+  return DEFAULT_BACKEND_URL;
 }
 
-export function setBackendUrl(url: string): void {
-  if (typeof window === "undefined") return;
-  const clean = normalizeBackendUrl(url);
-  if (clean && clean !== DEFAULT_BACKEND_URL) {
-    window.localStorage.setItem(BACKEND_URL_KEY, clean);
-  } else {
-    window.localStorage.removeItem(BACKEND_URL_KEY);
-  }
+/** @deprecated backend URL is now fixed at build time. This is a no-op. */
+export function setBackendUrl(_url: string): void {
+  /* intentionally no-op — see getBackendUrl above */
 }
 
 /** @deprecated use getBackendUrl() */
