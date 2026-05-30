@@ -55,7 +55,7 @@ export interface Job {
 const BACKEND_URL_KEY = "clipping4me:backend-url";
 const DEFAULT_BACKEND_URL =
   (import.meta.env.VITE_BACKEND_URL as string | undefined) ??
-  "https://pending-doornail-reason.ngrok-free.dev";
+  "https://alexiss-macbook-pro.tail5140ea.ts.net";
 
 export function getBackendUrl(): string {
   if (typeof window === "undefined") return DEFAULT_BACKEND_URL;
