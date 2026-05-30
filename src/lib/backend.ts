@@ -52,9 +52,28 @@ export interface Job {
   error?: string;
 }
 
-export const BACKEND_URL =
+const BACKEND_URL_KEY = "clipping4me:backend-url";
+const DEFAULT_BACKEND_URL =
   (import.meta.env.VITE_BACKEND_URL as string | undefined) ??
   "http://localhost:8000";
+
+export function getBackendUrl(): string {
+  if (typeof window === "undefined") return DEFAULT_BACKEND_URL;
+  return window.localStorage.getItem(BACKEND_URL_KEY) || DEFAULT_BACKEND_URL;
+}
+
+export function setBackendUrl(url: string): void {
+  if (typeof window === "undefined") return;
+  const clean = url.trim().replace(/\/+$/, "");
+  if (clean && clean !== DEFAULT_BACKEND_URL) {
+    window.localStorage.setItem(BACKEND_URL_KEY, clean);
+  } else {
+    window.localStorage.removeItem(BACKEND_URL_KEY);
+  }
+}
+
+/** @deprecated use getBackendUrl() */
+export const BACKEND_URL = DEFAULT_BACKEND_URL;
 
 async function tryFetch<T>(path: string, init?: RequestInit): Promise<T | null> {
   try {
