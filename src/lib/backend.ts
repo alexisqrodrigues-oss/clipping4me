@@ -317,3 +317,15 @@ export function formatRelative(iso: string): string {
   if (h < 24) return `${h}h atrás`;
   return `${Math.floor(h / 24)}d atrás`;
 }
+
+export async function checkHealth(): Promise<boolean> {
+  try {
+    const res = await fetch(`${BACKEND_URL}/health`, {
+      method: "GET",
+      signal: AbortSignal.timeout(2000),
+    });
+    return res.ok;
+  } catch {
+    return false;
+  }
+}
