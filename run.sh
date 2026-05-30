@@ -92,14 +92,35 @@ ensure_public_backend() {
     return
   fi
 
-  if [ -f "$HOME/.cloudflared/config.yml" ]; then
-    ok "Usando backend público em https://api.clipping4.me"
-    printf '%s' 'https://api.clipping4.me'
+  if [ ! -f "$HOME/.cloudflared/config.yml" ]; then
+    warn "Config do Cloudflare Tunnel não encontrada em ~/.cloudflared/config.yml" >&2
+    printf 'http://127.0.0.1:%s' "$BACKEND_PORT"
     return
   fi
 
-  warn "Config do Cloudflare Tunnel não encontrada em ~/.cloudflared/config.yml"
-  printf 'http://127.0.0.1:%s' "$BACKEND_PORT"
+  # Garante que o cloudflared está rodando (daemon do sistema OU processo do usuário)
+  if ! pgrep -x cloudflared >/dev/null 2>&1; then
+    if command -v cloudflared >/dev/null 2>&1; then
+      log "cloudflared não está rodando — subindo em background..." >&2
+      nohup cloudflared --config "$HOME/.cloudflared/config.yml" tunnel run clipping4me-api \
+        >/tmp/clipping4me-cloudflared.log 2>&1 &
+      sleep 2
+    else
+      warn "cloudflared não instalado (brew install cloudflared)" >&2
+      printf 'http://127.0.0.1:%s' "$BACKEND_PORT"
+      return
+    fi
+  fi
+
+  # Confirma que o endpoint público responde antes de usá-lo
+  if wait_for "https://api.clipping4.me/health" 15; then
+    ok "Usando backend público em https://api.clipping4.me" >&2
+    printf '%s' 'https://api.clipping4.me'
+  else
+    warn "https://api.clipping4.me/health não respondeu — caindo para local" >&2
+    warn "Logs: /tmp/clipping4me-cloudflared.log" >&2
+    printf 'http://127.0.0.1:%s' "$BACKEND_PORT"
+  fi
 }
 
 open_frontend() {
