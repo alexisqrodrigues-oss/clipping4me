@@ -10,6 +10,7 @@ import subprocess
 import uuid
 from pathlib import Path
 from typing import Optional
+from urllib.parse import urlparse
 
 from fastapi import (
     BackgroundTasks,
@@ -46,6 +47,38 @@ ensure_dirs()
 (ROOT_DIR / "media").mkdir(exist_ok=True)
 auth.bootstrap_admin()
 
+# ---------- security knobs ----------
+# Upload limit (bytes). 10 GiB by default; override via env if needed.
+MAX_UPLOAD_BYTES = 10 * 1024 * 1024 * 1024
+ALLOWED_UPLOAD_EXTENSIONS = {
+    ".mp4", ".mov", ".mkv", ".webm", ".m4v", ".avi",
+    ".mp3", ".wav", ".m4a", ".aac", ".flac", ".ogg",
+}
+# Allowed YouTube-source hosts. Validated for /jobs (kind="youtube"/"srt").
+_ALLOWED_SOURCE_HOSTS = {
+    "youtube.com", "www.youtube.com", "m.youtube.com",
+    "youtu.be", "music.youtube.com",
+}
+
+
+def _validate_remote_source(source: str) -> None:
+    """Reject sources that don't look like a public YouTube URL.
+
+    yt-dlp accepts a huge variety of schemes (file://, ftp://, internal IPs,
+    cloud metadata, …). Restricting to a small host allowlist prevents the
+    backend from being abused as an SSRF proxy.
+    """
+    if not source or not isinstance(source, str):
+        raise HTTPException(400, "source obrigatório")
+    try:
+        parsed = urlparse(source.strip())
+    except Exception:
+        raise HTTPException(400, "source inválido")
+    if parsed.scheme not in {"http", "https"}:
+        raise HTTPException(400, "source deve começar com https://")
+    host = (parsed.hostname or "").lower()
+    if not host or host not in _ALLOWED_SOURCE_HOSTS:
+        raise HTTPException(400, "source deve ser uma URL do YouTube")
 app = FastAPI(title="Clipping4me Backend", version="0.2.0")
 
 app.add_middleware(
@@ -135,15 +168,17 @@ async def admin_delete_user(user_id: str, current: User = Depends(require_admin)
 
 # ---------- jobs (protegidas) ----------
 @app.get("/jobs")
-async def list_jobs(_: User = Depends(require_user)):
-    return {"jobs": [j.model_dump() for j in storage.list_jobs()]}
+async def list_jobs(user: User = Depends(require_user)):
+    jobs = storage.list_jobs(user_id=user.id, include_all=user.role == "admin")
+    return {"jobs": [j.model_dump() for j in jobs]}
 
 
 @app.get("/jobs/{job_id}")
-async def get_job(job_id: str, _: User = Depends(require_user)):
+async def get_job(job_id: str, user: User = Depends(require_user)):
     job = storage.get_job(job_id)
     if not job:
         raise HTTPException(404, "job not found")
+    _require_job_owner(job, user)
     return {"job": job.model_dump()}
 
 
@@ -151,10 +186,14 @@ async def get_job(job_id: str, _: User = Depends(require_user)):
 async def create_job(
     input: CreateJobInput,
     background: BackgroundTasks,
-    _: User = Depends(require_user),
+    user: User = Depends(require_user),
 ):
     """Criação via JSON — usado para YouTube (sem upload)."""
-    job = _new_job(input.kind, input.source, input.instructions, input.podcast_title)
+    if input.kind in {"youtube", "srt"}:
+        _validate_remote_source(input.source)
+    job = _new_job(
+        input.kind, input.source, input.instructions, input.podcast_title, user_id=user.id
+    )
     storage.save_job(job)
     background.add_task(_run_async_safe, job)
     return {"job": job.model_dump()}
@@ -168,20 +207,46 @@ async def create_job_upload(
     podcast_title: Optional[str] = Form(None),
     video: UploadFile = File(...),
     srt: Optional[UploadFile] = File(None),
-    _: User = Depends(require_user),
+    user: User = Depends(require_user),
 ):
     """Criação com upload de arquivo (vídeo + SRT opcional)."""
     if kind != "upload":
         raise HTTPException(400, "kind deve ser 'upload' aqui")
 
+    suffix = Path(video.filename or "input.mp4").suffix.lower() or ".mp4"
+    if suffix not in ALLOWED_UPLOAD_EXTENSIONS:
+        raise HTTPException(
+            415,
+            f"tipo de arquivo não suportado ({suffix}). "
+            f"aceitos: {', '.join(sorted(ALLOWED_UPLOAD_EXTENSIONS))}",
+        )
+
     job_id = f"job_{uuid.uuid4().hex[:8]}"
     work = JOBS_DIR / job_id
     work.mkdir(parents=True, exist_ok=True)
 
-    suffix = Path(video.filename or "input.mp4").suffix or ".mp4"
     saved_video = work / f"input{suffix}"
+    # Stream-copy with a hard cap so a single upload can't fill the disk.
+    written = 0
+    chunk_size = 1024 * 1024
     with saved_video.open("wb") as f:
-        shutil.copyfileobj(video.file, f)
+        while True:
+            chunk = video.file.read(chunk_size)
+            if not chunk:
+                break
+            written += len(chunk)
+            if written > MAX_UPLOAD_BYTES:
+                f.close()
+                try:
+                    saved_video.unlink(missing_ok=True)
+                    shutil.rmtree(work, ignore_errors=True)
+                except Exception:
+                    pass
+                raise HTTPException(
+                    413,
+                    f"arquivo excede o limite de {MAX_UPLOAD_BYTES // (1024**3)} GiB",
+                )
+            f.write(chunk)
 
     if srt is not None:
         with (work / "user.srt").open("wb") as f:
@@ -193,6 +258,7 @@ async def create_job_upload(
         instructions=instructions,
         podcast_title=podcast_title or Path(video.filename or "Upload").stem,
         job_id=job_id,
+        user_id=user.id,
     )
     storage.save_job(job)
     background.add_task(_run_async_safe, job)
@@ -201,11 +267,12 @@ async def create_job_upload(
 
 @app.post("/jobs/{job_id}/open")
 async def open_in_finder(
-    job_id: str, input: OpenFolderInput, _: User = Depends(require_user)
+    job_id: str, input: OpenFolderInput, user: User = Depends(require_user)
 ):
     job = storage.get_job(job_id)
     if not job:
         raise HTTPException(404, "job not found")
+    _require_job_owner(job, user)
     path = None
     if input.clipId and job.clips:
         clip = next((c for c in job.clips if c.id == input.clipId), None)
@@ -248,11 +315,12 @@ async def regenerate_copy_all(
     job_id: str,
     clip_id: str,
     payload: CopyChatInput,
-    _: User = Depends(require_user),
+    user: User = Depends(require_user),
 ):
     job = storage.get_job(job_id)
     if not job:
         raise HTTPException(404, "job not found")
+    _require_job_owner(job, user)
     clip = _find_clip(job, clip_id)
     if not clip:
         raise HTTPException(404, "clip not found")
@@ -276,13 +344,14 @@ async def regenerate_copy_field(
     clip_id: str,
     field: str,
     payload: CopyChatInput,
-    _: User = Depends(require_user),
+    user: User = Depends(require_user),
 ):
     if field not in {"caption", "description", "hashtags", "cta"}:
         raise HTTPException(400, "campo inválido")
     job = storage.get_job(job_id)
     if not job:
         raise HTTPException(404, "job not found")
+    _require_job_owner(job, user)
     clip = _find_clip(job, clip_id)
     if not clip:
         raise HTTPException(404, "clip not found")
@@ -311,12 +380,13 @@ async def save_copy(
     job_id: str,
     clip_id: str,
     payload: CopyPatch,
-    _: User = Depends(require_user),
+    user: User = Depends(require_user),
 ):
     """Persiste edições manuais feitas pelo usuário no editor."""
     job = storage.get_job(job_id)
     if not job:
         raise HTTPException(404, "job not found")
+    _require_job_owner(job, user)
     clip = _find_clip(job, clip_id)
     if not clip:
         raise HTTPException(404, "clip not found")
@@ -340,10 +410,11 @@ async def download_clip(job_id: str, clip_id: str, request: Request):
 
     Aceita Authorization: Bearer OU ?token= (para uso direto em <a href>).
     """
-    require_user(request)
+    user = require_user(request)
     job = storage.get_job(job_id)
     if not job:
         raise HTTPException(404, "job not found")
+    _require_job_owner(job, user)
     clip = _find_clip(job, clip_id)
     if not clip:
         raise HTTPException(404, "clip not found")
@@ -359,7 +430,7 @@ async def download_clip(job_id: str, clip_id: str, request: Request):
 
 
 # ---------- helpers ----------
-def _new_job(kind, source, instructions, podcast_title=None, job_id=None) -> Job:
+def _new_job(kind, source, instructions, podcast_title=None, job_id=None, user_id=None) -> Job:
     return Job(
         id=job_id or f"job_{uuid.uuid4().hex[:8]}",
         kind=kind,
@@ -368,8 +439,17 @@ def _new_job(kind, source, instructions, podcast_title=None, job_id=None) -> Job
         instructions=instructions or "",
         status="queued",
         progress=0,
+        user_id=user_id,
     )
 
 
 def _run_async_safe(job: Job) -> None:
     asyncio.run(run_job(job))
+
+
+def _require_job_owner(job: Job, user: User) -> None:
+    """Raise 403 unless ``user`` owns the job (admins bypass)."""
+    if user.role == "admin":
+        return
+    if job.user_id is None or job.user_id != user.id:
+        raise HTTPException(403, "forbidden")
