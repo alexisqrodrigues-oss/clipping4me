@@ -32,6 +32,10 @@ class Clip(BaseModel):
     duration: float
     segments: List[ClipSegment] = []
     folder_path: str
+    # Copy editorial para os posts (gerados sob demanda via /copy)
+    caption: Optional[str] = None        # texto curto pra overlay/post
+    hashtags: List[str] = []             # lista de hashtags sem o #
+    cta: Optional[str] = None            # call-to-action curto
 
 
 class Job(BaseModel):
@@ -56,3 +60,13 @@ class CreateJobInput(BaseModel):
 
 class OpenFolderInput(BaseModel):
     clipId: Optional[str] = None
+
+
+CopyField = Literal["caption", "description", "hashtags", "cta"]
+
+
+class CopyChatInput(BaseModel):
+    """Instrução do usuário para regenerar UM bloco de copy."""
+    instruction: str = ""        # ex: "deixa mais polêmico", "adiciona CTA pra bio"
+    preset: Optional[str] = None  # polemico | institucional | autoridade | engajamento
+    model: Optional[str] = None   # override do modelo Ollama
