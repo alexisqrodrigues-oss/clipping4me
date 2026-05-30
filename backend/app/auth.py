@@ -194,7 +194,7 @@ def bootstrap_admin() -> None:
     """Cria o admin inicial se ainda não existir nenhum usuário."""
     if list_users():
         return
-    username = os.environ.get("ADMIN_USERNAME", "axis")
+    username = os.environ.get("ADMIN_USERNAME", "admin")
     pwd = os.environ.get("ADMIN_BOOTSTRAP_PASSWORD")
     if not pwd:
         pwd = secrets.token_urlsafe(12)
