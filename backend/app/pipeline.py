@@ -175,15 +175,18 @@ def _slice_segments(all_segs: list[dict], start: float, end: float, pick: dict) 
     if hook:
         out.append(ClipSegment(
             role="hook", start=hook[0]["start"], end=hook[-1]["end"],
-            text=" ".join(s["text"] for s in hook)))
+            text=" ".join(s["text"] for s in hook),
+            speaker=_dominant_speaker(hook)))
     if dev:
         out.append(ClipSegment(
             role="dev", start=dev[0]["start"], end=dev[-1]["end"],
-            text=" ".join(s["text"] for s in dev)[:200]))
+            text=" ".join(s["text"] for s in dev)[:200],
+            speaker=_dominant_speaker(dev)))
     if close:
         out.append(ClipSegment(
             role="close", start=close[0]["start"], end=close[-1]["end"],
-            text=" ".join(s["text"] for s in close)))
+            text=" ".join(s["text"] for s in close),
+            speaker=_dominant_speaker(close)))
     return out
 
 
