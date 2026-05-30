@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
-set -euo pipefail
+set -uo pipefail
+# NOTA: não usamos -e. Queremos capturar erros e mostrar mensagem amigável,
+# não fechar a janela do Terminal silenciosamente.
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 cd "$SCRIPT_DIR"
@@ -13,6 +15,23 @@ log()  { printf "\033[1;36m[clipping4me]\033[0m %s\n" "$*"; }
 ok()   { printf "\033[1;32m[ok]\033[0m %s\n" "$*"; }
 warn() { printf "\033[1;33m[!]\033[0m %s\n" "$*"; }
 err()  { printf "\033[1;31m[erro]\033[0m %s\n" "$*"; }
+
+pause_and_exit() {
+  local code="${1:-0}"
+  echo
+  read -n 1 -s -r -p "Pressione qualquer tecla para fechar..."
+  echo
+  exit "$code"
+}
+
+# Trap pra qualquer erro inesperado não derrubar a janela em silêncio
+on_error() {
+  local code=$?
+  err "Algo deu errado (código $code) na linha $1."
+  err "Veja os logs em /tmp/clipping4me-*.log para mais detalhes."
+  pause_and_exit "$code"
+}
+trap 'on_error $LINENO' ERR
 
 wait_for() {
   local url="$1" max="$2" i=0
@@ -76,9 +95,11 @@ update_project() {
 }
 
 ensure_ollama() {
+  log "Verificando Ollama..."
   if ! command -v ollama >/dev/null 2>&1; then
-    err "Ollama não está instalado. Instale com: brew install ollama"
-    exit 1
+    err "Ollama NÃO está instalado."
+    err "Para instalar: brew install ollama"
+    return 1
   fi
 
   if curl -sf "http://localhost:11434/api/tags" >/dev/null 2>&1; then
@@ -89,8 +110,10 @@ ensure_ollama() {
     if wait_for "http://localhost:11434/api/tags" 20; then
       ok "Ollama no ar."
     else
-      err "Ollama não respondeu em 20s. Veja /tmp/clipping4me-ollama.log"
-      exit 1
+      err "Ollama não respondeu em 20s."
+      err "Logs: /tmp/clipping4me-ollama.log"
+      tail -n 20 /tmp/clipping4me-ollama.log 2>/dev/null || true
+      return 1
     fi
   fi
 
@@ -98,15 +121,21 @@ ensure_ollama() {
     ok "Modelo ${OLLAMA_MODEL} disponível."
   else
     log "Baixando modelo ${OLLAMA_MODEL} (primeira vez pode demorar)..."
-    ollama pull "$OLLAMA_MODEL"
-    ok "Modelo ${OLLAMA_MODEL} pronto."
+    if ollama pull "$OLLAMA_MODEL"; then
+      ok "Modelo ${OLLAMA_MODEL} pronto."
+    else
+      err "Falha ao baixar modelo ${OLLAMA_MODEL}."
+      return 1
+    fi
   fi
 }
 
 ensure_backend() {
+  log "Verificando backend..."
   if [ ! -f "backend/run.sh" ]; then
-    err "backend/run.sh não encontrado em $SCRIPT_DIR"
-    exit 1
+    err "backend/run.sh NÃO encontrado em $SCRIPT_DIR/backend"
+    err "Você está rodando o .command na pasta correta do projeto?"
+    return 1
   fi
 
   if curl -sf "http://127.0.0.1:${BACKEND_PORT}/health" >/dev/null 2>&1; then
@@ -120,9 +149,12 @@ ensure_backend() {
   if wait_for "http://127.0.0.1:${BACKEND_PORT}/health" 120; then
     ok "Backend no ar em http://127.0.0.1:${BACKEND_PORT}"
   else
-    err "Backend não subiu em 120s. Veja /tmp/clipping4me-backend.log"
-    tail -n 40 /tmp/clipping4me-backend.log || true
-    exit 1
+    err "Backend não subiu em 120s."
+    err "Últimas linhas do log (/tmp/clipping4me-backend.log):"
+    echo "----------------------------------------"
+    tail -n 40 /tmp/clipping4me-backend.log 2>/dev/null || echo "(log vazio)"
+    echo "----------------------------------------"
+    return 1
   fi
 }
 
@@ -134,6 +166,7 @@ ensure_public_backend() {
 
   if [ ! -f "$HOME/.cloudflared/config.yml" ]; then
     warn "Config do Cloudflare Tunnel não encontrada em ~/.cloudflared/config.yml" >&2
+    warn "Usando backend local em vez do túnel público." >&2
     printf 'http://127.0.0.1:%s' "$BACKEND_PORT"
     return
   fi
@@ -146,7 +179,8 @@ ensure_public_backend() {
         >/tmp/clipping4me-cloudflared.log 2>&1 &
       sleep 2
     else
-      warn "cloudflared não instalado (brew install cloudflared)" >&2
+      warn "cloudflared NÃO instalado. Instale com: brew install cloudflared" >&2
+      warn "Usando backend local em vez do túnel público." >&2
       printf 'http://127.0.0.1:%s' "$BACKEND_PORT"
       return
     fi
@@ -159,6 +193,11 @@ ensure_public_backend() {
   else
     warn "https://api.clipping4.me/health não respondeu — caindo para local" >&2
     warn "Logs: /tmp/clipping4me-cloudflared.log" >&2
+    if [ -f /tmp/clipping4me-cloudflared.log ]; then
+      echo "---- últimas linhas do cloudflared ----" >&2
+      tail -n 15 /tmp/clipping4me-cloudflared.log >&2 2>/dev/null || true
+      echo "----------------------------------------" >&2
+    fi
     printf 'http://127.0.0.1:%s' "$BACKEND_PORT"
   fi
 }
@@ -170,19 +209,118 @@ open_frontend() {
   open "$final_url" >/dev/null 2>&1 || true
 }
 
+diagnose() {
+  echo
+  log "===== DIAGNÓSTICO ====="
+  echo
+
+  # Ollama
+  if command -v ollama >/dev/null 2>&1; then
+    ok "Ollama instalado ($(command -v ollama))"
+    if curl -sf "http://localhost:11434/api/tags" >/dev/null 2>&1; then
+      ok "Ollama rodando em http://localhost:11434"
+      if ollama list 2>/dev/null | awk 'NR>1 {print $1}' | grep -q "^${OLLAMA_MODEL}$"; then
+        ok "Modelo ${OLLAMA_MODEL} disponível"
+      else
+        warn "Modelo ${OLLAMA_MODEL} NÃO baixado"
+      fi
+    else
+      err "Ollama NÃO está rodando"
+    fi
+  else
+    err "Ollama NÃO instalado (brew install ollama)"
+  fi
+  echo
+
+  # Backend local
+  if curl -sf "http://127.0.0.1:${BACKEND_PORT}/health" >/dev/null 2>&1; then
+    ok "Backend local respondendo em http://127.0.0.1:${BACKEND_PORT}/health"
+  else
+    err "Backend local NÃO responde em http://127.0.0.1:${BACKEND_PORT}/health"
+    if [ -f /tmp/clipping4me-backend.log ]; then
+      warn "Últimas linhas de /tmp/clipping4me-backend.log:"
+      echo "----------------------------------------"
+      tail -n 20 /tmp/clipping4me-backend.log 2>/dev/null || true
+      echo "----------------------------------------"
+    else
+      warn "Nenhum log de backend em /tmp/clipping4me-backend.log"
+    fi
+  fi
+  echo
+
+  # cloudflared
+  if command -v cloudflared >/dev/null 2>&1; then
+    ok "cloudflared instalado ($(command -v cloudflared))"
+    if pgrep -x cloudflared >/dev/null 2>&1; then
+      ok "Processo cloudflared rodando (PID $(pgrep -x cloudflared | tr '\n' ' '))"
+    else
+      err "Processo cloudflared NÃO está rodando"
+    fi
+    if [ -f "$HOME/.cloudflared/config.yml" ]; then
+      ok "Config encontrada em ~/.cloudflared/config.yml"
+    else
+      err "Config NÃO encontrada em ~/.cloudflared/config.yml"
+    fi
+  else
+    warn "cloudflared NÃO instalado (brew install cloudflared)"
+  fi
+  echo
+
+  # Endpoint público
+  if curl -sfm 5 "https://api.clipping4.me/health" >/dev/null 2>&1; then
+    ok "https://api.clipping4.me/health respondendo"
+  else
+    err "https://api.clipping4.me/health NÃO responde"
+    err "Sem isso, o site clipping4.me não consegue falar com seu backend."
+  fi
+  echo
+
+  log "===== FIM DO DIAGNÓSTICO ====="
+}
+
+stop_all() {
+  echo
+  log "Parando serviços..."
+  if pgrep -f "backend/run.sh" >/dev/null 2>&1; then
+    pkill -f "backend/run.sh" 2>/dev/null || true
+    ok "Backend parado."
+  else
+    warn "Backend não estava rodando."
+  fi
+  if pgrep -f "uvicorn.*app.main" >/dev/null 2>&1; then
+    pkill -f "uvicorn.*app.main" 2>/dev/null || true
+    ok "uvicorn parado."
+  fi
+  if pgrep -x cloudflared >/dev/null 2>&1; then
+    pkill -x cloudflared 2>/dev/null || true
+    ok "cloudflared parado."
+  else
+    warn "cloudflared não estava rodando."
+  fi
+  if pgrep -x ollama >/dev/null 2>&1; then
+    pkill -x ollama 2>/dev/null || true
+    ok "Ollama parado."
+  else
+    warn "Ollama não estava rodando."
+  fi
+  echo
+}
+
 show_menu() {
   echo
   log "Escolha uma opção:"
   echo
   echo "  1) Iniciar Clipping4Me"
   echo "  2) Atualizar projeto (git pull)"
-  echo "  3) Sair"
+  echo "  3) Diagnóstico (ver o que está/não está rodando)"
+  echo "  4) Parar todos os serviços"
+  echo "  5) Sair"
   echo
 }
 
 run_app() {
-  ensure_ollama
-  ensure_backend
+  ensure_ollama   || { err "Falhou ao subir Ollama. Abortando."; return 1; }
+  ensure_backend  || { err "Falhou ao subir Backend. Abortando."; return 1; }
   PUBLIC_BACKEND_URL="$(ensure_public_backend)"
   open_frontend "$PUBLIC_BACKEND_URL"
 
@@ -191,35 +329,44 @@ run_app() {
   log "Backend: $PUBLIC_BACKEND_URL"
   log "Logs backend: /tmp/clipping4me-backend.log"
   log "Logs Ollama: /tmp/clipping4me-ollama.log"
-  echo
-  read -n 1 -s -r -p "Pressione qualquer tecla para fechar..."
-  echo
+  log "Logs cloudflared: /tmp/clipping4me-cloudflared.log"
 }
 
 # ============= MAIN =============
 
 show_menu
-read -r -p "Opção [1-3]: " choice
+read -r -p "Opção [1-5]: " choice
 
 case "$choice" in
   1)
     echo
     log "Iniciando Clipping4Me..."
     echo
-    run_app
+    if run_app; then
+      ok "OK."
+    else
+      err "Inicialização falhou. Rode a opção 3 (Diagnóstico) para ver detalhes."
+    fi
+    pause_and_exit 0
     ;;
   2)
-    update_project
-    echo
-    read -n 1 -s -r -p "Pressione qualquer tecla para fechar..."
-    echo
+    update_project || err "Falha ao atualizar."
+    pause_and_exit 0
     ;;
   3)
+    diagnose
+    pause_and_exit 0
+    ;;
+  4)
+    stop_all
+    pause_and_exit 0
+    ;;
+  5)
     log "Saindo."
     exit 0
     ;;
   *)
     err "Opção inválida."
-    exit 1
+    pause_and_exit 1
     ;;
 esac
