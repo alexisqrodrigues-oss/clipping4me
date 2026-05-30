@@ -9,18 +9,18 @@
   <key>ProgramArguments</key>
   <array>
     <string>/bin/bash</string>
-    <string>/Users/axis/Dev/clipping4me/backend/run.sh</string>
+    <string>__REPO_DIR__/backend/run.sh</string>
   </array>
 
   <key>WorkingDirectory</key>
-  <string>/Users/axis/Dev/clipping4me/backend</string>
+  <string>__REPO_DIR__/backend</string>
 
   <key>EnvironmentVariables</key>
   <dict>
     <key>PATH</key>
     <string>/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin</string>
     <key>CLIPPING4ME_ROOT</key>
-    <string>/Users/axis/Dev/clipping4me/Documents</string>
+    <string>__HOME__/Clipping4me</string>
     <!-- Defina ADMIN_BOOTSTRAP_PASSWORD apenas na PRIMEIRA execução,
          depois remova essa entrada e use o painel /admin pra trocar. -->
     <!--
@@ -35,8 +35,8 @@
   <true/>
 
   <key>StandardOutPath</key>
-  <string>/Users/axis/Library/Logs/clipping4me.log</string>
+  <string>__HOME__/Library/Logs/clipping4me.log</string>
   <key>StandardErrorPath</key>
-  <string>/Users/axis/Library/Logs/clipping4me.err.log</string>
+  <string>__HOME__/Library/Logs/clipping4me.err.log</string>
 </dict>
 </plist>
