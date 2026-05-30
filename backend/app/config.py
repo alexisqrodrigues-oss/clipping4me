@@ -14,7 +14,7 @@ STATE_FILE = ROOT_DIR / "jobs.json"
 
 # Ollama
 OLLAMA_URL = os.environ.get("OLLAMA_URL", "http://localhost:11434")
-OLLAMA_MODEL = os.environ.get("OLLAMA_MODEL", "llama3.1:8b")
+OLLAMA_MODEL = os.environ.get("OLLAMA_MODEL", "qwen2.5-coder:7b")
 
 # Whisper
 WHISPER_MODEL = os.environ.get("WHISPER_MODEL", "small")  # tiny | base | small | medium | large
