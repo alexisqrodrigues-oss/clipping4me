@@ -1,7 +1,7 @@
 /**
- * Backend client for the local Clipping4me Python service.
+ * Backend client for the Clipping4me Python service.
  *
- * Configure with VITE_BACKEND_URL (default: http://127.0.0.1:8000).
+ * Configure with VITE_BACKEND_URL (default: https://api.clipping4.me).
  * When the backend is offline, the app falls back to mock data so the UI
  * is fully usable for design/demo before the Python service exists.
  */
@@ -55,7 +55,7 @@ export interface Job {
 const BACKEND_URL_KEY = "clipping4me:backend-url";
 const DEFAULT_BACKEND_URL =
   (import.meta.env.VITE_BACKEND_URL as string | undefined) ??
-  "http://127.0.0.1:8000";
+  "https://api.clipping4.me";
 
 function normalizeBackendUrl(url: string | null | undefined): string {
   return (url ?? "").trim().replace(/\/+$/, "");
