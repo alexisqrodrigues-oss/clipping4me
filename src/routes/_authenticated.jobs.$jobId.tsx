@@ -9,6 +9,7 @@ import {
   type Clip,
   type Job,
 } from "@/lib/backend";
+import { CopyEditor } from "@/components/CopyEditor";
 
 export const Route = createFileRoute("/_authenticated/jobs/$jobId")({
   head: ({ params }) => ({
@@ -132,7 +133,23 @@ function JobDetail() {
           </h2>
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
             {job.clips.map((clip) => (
-              <ClipCard key={clip.id} clip={clip} jobId={job.id} />
+              <ClipCard
+                key={clip.id}
+                clip={clip}
+                jobId={job.id}
+                onClipUpdate={(updated) =>
+                  setJob((prev) =>
+                    prev && prev.clips
+                      ? {
+                          ...prev,
+                          clips: prev.clips.map((c) =>
+                            c.id === updated.id ? { ...c, ...updated } : c,
+                          ),
+                        }
+                      : prev,
+                  )
+                }
+              />
             ))}
           </div>
         </section>
@@ -174,7 +191,15 @@ function PipelineSteps({ current }: { current: Job["status"] }) {
   );
 }
 
-function ClipCard({ clip, jobId }: { clip: Clip; jobId: string }) {
+function ClipCard({
+  clip,
+  jobId,
+  onClipUpdate,
+}: {
+  clip: Clip;
+  jobId: string;
+  onClipUpdate: (clip: Clip) => void;
+}) {
   const hue = (clip.index * 67) % 360;
   return (
     <article className="group flex flex-col rounded-lg border border-border bg-surface p-5 transition-colors hover:border-primary/50">
@@ -220,6 +245,7 @@ function ClipCard({ clip, jobId }: { clip: Clip; jobId: string }) {
       <div className="mt-4 truncate font-mono text-[10px] text-muted-foreground/70">
         {clip.folder_path}
       </div>
+      <CopyEditor clip={clip} jobId={jobId} onClipUpdate={onClipUpdate} />
     </article>
   );
 }
