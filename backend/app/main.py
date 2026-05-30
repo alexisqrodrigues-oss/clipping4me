@@ -326,6 +326,38 @@ async def save_copy(
     return {"clip": clip.model_dump()}
 
 
+# ---------- export / download ----------
+def _safe_filename(name: str) -> str:
+    import re as _re
+    name = _re.sub(r"[^\w\s\-\.]", "", name, flags=_re.UNICODE).strip()
+    name = _re.sub(r"\s+", "_", name)
+    return (name or "clip")[:80]
+
+
+@app.get("/jobs/{job_id}/clips/{clip_id}/download")
+async def download_clip(job_id: str, clip_id: str, request: Request):
+    """Baixa o MP4 9:16 final do corte com nome amigável.
+
+    Aceita Authorization: Bearer OU ?token= (para uso direto em <a href>).
+    """
+    require_user(request)
+    job = storage.get_job(job_id)
+    if not job:
+        raise HTTPException(404, "job not found")
+    clip = _find_clip(job, clip_id)
+    if not clip:
+        raise HTTPException(404, "clip not found")
+    path = ROOT_DIR / "media" / job_id / clip_id / "video.mp4"
+    if not path.exists():
+        raise HTTPException(404, "arquivo do corte não encontrado")
+    fname = f"{_safe_filename(job.podcast_title)}_{clip.index:02d}_{_safe_filename(clip.title)}.mp4"
+    return FileResponse(
+        path,
+        media_type="video/mp4",
+        filename=fname,
+    )
+
+
 # ---------- helpers ----------
 def _new_job(kind, source, instructions, podcast_title=None, job_id=None) -> Job:
     return Job(
