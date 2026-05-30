@@ -61,7 +61,7 @@ ADMIN_BOOTSTRAP_PASSWORD='SuaSenhaForte' bash run.sh
 ## O que precisa estar ativo no Mac
 
 - **Ollama** rodando
-- **modelo do Ollama** baixado (`llama3.1:8b` por padrão)
+- **modelo do Ollama** baixado (`qwen2.5-coder:7b` por padrão)
 - **backend Python** na porta `8000`
 - **Tailscale conectado** se você quiser acesso HTTPS público fora do Mac
 
