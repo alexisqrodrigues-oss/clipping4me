@@ -55,7 +55,7 @@ function JobDetail() {
         <div className="rounded-lg border border-border bg-surface p-12 text-center">
           <h1 className="font-display text-3xl">Job não encontrado</h1>
           <Link
-            to="/"
+            to="/app"
             className="mt-4 inline-block font-mono text-xs uppercase tracking-widest text-primary"
           >
             ← voltar
@@ -70,7 +70,7 @@ function JobDetail() {
   return (
     <main className="relative z-10 mx-auto max-w-6xl px-6 py-12">
       <Link
-        to="/"
+        to="/app"
         className="mb-6 inline-block font-mono text-[11px] uppercase tracking-widest text-muted-foreground hover:text-foreground"
       >
         ← jobs
