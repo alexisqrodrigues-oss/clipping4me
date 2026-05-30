@@ -4,7 +4,7 @@ import { getToken, login } from "@/lib/auth";
 
 export const Route = createFileRoute("/login")({
   validateSearch: (search: Record<string, unknown>) => ({
-    redirect: typeof search.redirect === "string" ? search.redirect : "/",
+    redirect: typeof search.redirect === "string" ? search.redirect : "/app",
   }),
   head: () => ({
     meta: [{ title: "Entrar — Clipping4me" }],
