@@ -1,86 +1,133 @@
 # Clipping4Me
 
-Fluxo para você clonar no Mac, dar um clique e subir o backend local com Ollama já integrado ao domínio `clipping4.me`.
+Plataforma para gerar clipes curtos a partir de vídeos longos (YouTube, upload ou SRT) usando transcrição com Whisper e curadoria com LLM via Ollama. O frontend é hospedado pela Lovable (`clipping4.me`) e o backend roda localmente no seu Mac, exposto via Cloudflare Tunnel em `api.clipping4.me`.
 
-## O que já ficou organizado neste repo
+- **Frontend (produção):** https://www.clipping4.me
+- **Frontend (preview):** https://clipping4me.lovable.app
+- **Backend público:** https://api.clipping4.me (tunnel para `localhost:8000` no seu Mac)
 
-- `run.sh` na raiz para ser o bootstrap principal já apontando para `https://clipping4.me`
-- `Clipping4Me.command` para duplo clique no Finder
-- `backend/run.sh` só cuida do backend Python
-- `backend/install-launchagent.sh` gera o LaunchAgent com o caminho real do clone
-- `backend/install-cloudflare.sh` cria/configura o Cloudflare Tunnel para `api.clipping4.me`
-- frontend aceita `?backend=` automaticamente, então o launcher já abre a UI apontando pro backend certo
-- backend sem caminhos fixos de usuário/máquina
-
-## Estrutura correta
+## Arquitetura
 
 ```text
-clipping4me/
-├── run.sh
-├── Clipping4Me.command
-├── backend/
-│   ├── run.sh
-│   ├── install-launchagent.sh
-│   ├── README.md
-│   └── app/
-└── src/
+Browser  ──►  www.clipping4.me (TanStack Start na Lovable)
+               │
+               ▼ chamadas HTTPS autenticadas
+         api.clipping4.me (Cloudflare Tunnel)
+               │
+               ▼
+         localhost:8000  (FastAPI no seu Mac)
+               │
+               ├── ffmpeg / yt-dlp  → download + corte
+               ├── openai-whisper   → transcrição
+               └── Ollama (qwen2.5) → seleção dos clipes
 ```
 
-## Depois de clonar no Mac
+## Stack
 
-### 1. Instale as dependências de sistema
+- **Frontend:** React 19, TanStack Start, TanStack Query, Tailwind v4, shadcn/ui, framer-motion
+- **Backend:** Python 3.11, FastAPI, Uvicorn, Pydantic v2, bcrypt, httpx
+- **Mídia:** ffmpeg, yt-dlp, openai-whisper
+- **LLM:** Ollama local (`qwen2.5-coder:7b` por padrão)
+- **Túnel:** cloudflared
+
+## Requisitos
+
+- macOS com Homebrew
+- Conta Cloudflare com o domínio `clipping4.me` (ou outro que você ajuste)
+- ~5 GB livres (Whisper baixa ~500 MB no primeiro uso; modelos Ollama 4–8 GB)
+- Dependências Python: ver [`backend/requirements.txt`](backend/requirements.txt) e [`requirements.txt`](requirements.txt) na raiz (cópia para conveniência)
+
+## Setup rápido no Mac
+
+### 1. Clonar
 
 ```bash
-brew install python@3.11 ffmpeg yt-dlp ollama
-brew install cloudflared
+git clone https://github.com/alexisqrodrigues-oss/clipping4me.git
+cd clipping4me
 ```
 
-### 2. Faça login no Cloudflare e deixe o Ollama disponível
+### 2. Instalar dependências de sistema (uma vez)
+
+```bash
+brew install python@3.11 ffmpeg yt-dlp ollama cloudflared
+brew services start ollama
+ollama pull qwen2.5-coder:7b
+```
+
+### 3. Configurar o tunnel para `api.clipping4.me` (uma vez)
 
 ```bash
 cloudflared tunnel login
-```
-
-Se preferir, o `run.sh` já tenta subir o Ollama sozinho.
-
-### 3. Configure o tunnel do domínio uma vez
-
-```bash
 bash backend/install-cloudflare.sh
 ```
 
-Isso cria o tunnel e grava `~/.cloudflared/config.yml` automaticamente para usar `api.clipping4.me`.
+### 4. Subir tudo
 
-### 4. Inicie com um clique
-
-- Finder: duplo clique em `Clipping4Me.command`
-- ou Terminal:
+Duplo clique em `Clipping4Me.command`, ou via terminal:
 
 ```bash
-bash run.sh
+ADMIN_BOOTSTRAP_PASSWORD='troque-isto' bash run.sh
 ```
 
-Na primeira vez, se quiser definir a senha do admin:
+A primeira execução cria o `.venv`, instala o `requirements.txt`, cria o usuário `admin` e abre a UI já apontando para o backend correto. Sem `ADMIN_BOOTSTRAP_PASSWORD`, uma senha aleatória é impressa **uma vez** no log — anote.
 
-```bash
-ADMIN_BOOTSTRAP_PASSWORD='SuaSenhaForte' bash run.sh
-```
-
-## O que precisa estar ativo no Mac
-
-- **Ollama** rodando
-- **modelo do Ollama** baixado (`qwen2.5-coder:7b` por padrão)
-- **backend Python** na porta `8000`
-- **Cloudflare Tunnel** instalado/configurado para servir `https://api.clipping4.me`
-
-O launcher já sobe o que conseguir automaticamente e abre a UI com a URL correta do backend.
-
-## Auto-start após reiniciar o Mac
-
-Para deixar o backend subindo sozinho:
+### 5. Auto-start após reboot (opcional)
 
 ```bash
 bash backend/install-launchagent.sh
 ```
 
-O script gera o `plist` com o caminho real do clone, sem caminho hardcoded.
+## Variáveis de ambiente principais (backend)
+
+| Variável | Default | Descrição |
+|---|---|---|
+| `ADMIN_USERNAME` | `admin` | Usuário administrador inicial |
+| `ADMIN_BOOTSTRAP_PASSWORD` | (aleatória) | Senha gravada no primeiro start |
+| `OLLAMA_HOST` | `http://localhost:11434` | Endpoint do Ollama |
+| `OLLAMA_MODEL` | `qwen2.5-coder:7b` | Modelo usado para sugerir clipes |
+| `WHISPER_MODEL` | `base` | Modelo Whisper (`tiny`/`base`/`small`/`medium`) |
+| `DATA_DIR` | `backend/data` | Pasta para jobs, mídia e DB sqlite |
+
+Para detalhes de cada arquivo do backend, ver [`backend/README.md`](backend/README.md) e [`backend/DEPLOY_MAC.md`](backend/DEPLOY_MAC.md).
+
+## Estrutura do repo
+
+```text
+clipping4me/
+├── Clipping4Me.command         # atalho de duplo clique no Finder
+├── run.sh                      # bootstrap (sobe Ollama + backend + UI)
+├── requirements.txt            # cópia das deps Python (espelho de backend/)
+├── README.md
+├── public/                     # ativos estáticos do frontend
+├── src/                        # frontend TanStack Start
+│   ├── routes/                 # rotas file-based
+│   ├── components/             # UI (shadcn + custom)
+│   ├── lib/                    # client de backend, server fns
+│   └── styles.css              # design tokens (Tailwind v4)
+└── backend/
+    ├── run.sh                  # cria .venv, instala deps, sobe FastAPI
+    ├── requirements.txt        # deps Python canônicas
+    ├── install-cloudflare.sh   # configura o tunnel
+    ├── install-launchagent.sh  # auto-start no login do Mac
+    └── app/
+        ├── main.py             # rotas FastAPI
+        ├── auth.py             # login + roles + bcrypt
+        ├── pipeline.py         # download → transcrição → corte
+        ├── cutter.py           # ffmpeg
+        ├── llm.py              # cliente Ollama
+        ├── storage.py          # persistência de jobs
+        └── models.py           # schemas Pydantic
+```
+
+## Segurança
+
+- Login obrigatório; admin gerencia usuários em `/admin`.
+- Senhas com bcrypt; sem texto plano em disco.
+- Cada job é isolado por `user_id` (multi-tenant); endpoints checam ownership.
+- SSRF mitigado: downloads remotos restritos a `youtube.com` / `youtu.be`.
+- Uploads limitados a 10 GB e extensões de áudio/vídeo conhecidas.
+- A URL do backend não pode ser sobrescrita pelo cliente.
+
+## Licença
+
+Uso interno. Adicione um `LICENSE` se for abrir o repo.
