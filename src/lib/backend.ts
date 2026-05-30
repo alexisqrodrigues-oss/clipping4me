@@ -37,6 +37,9 @@ export interface Clip {
   duration: number;
   segments: ClipSegment[];
   folder_path: string;
+  caption?: string;
+  hashtags?: string[];
+  cta?: string;
 }
 
 export interface Job {
