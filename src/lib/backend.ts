@@ -313,6 +313,59 @@ export async function openFolder(jobId: string, clipId?: string): Promise<boolea
   return !!live?.ok;
 }
 
+/* ---------- copy editor (Ollama) ---------- */
+
+export type CopyField = "caption" | "description" | "hashtags" | "cta";
+export type CopyPreset = "polemico" | "institucional" | "autoridade" | "engajamento";
+
+export interface CopyChatPayload {
+  instruction?: string;
+  preset?: CopyPreset;
+  model?: string;
+}
+
+export async function listModels(): Promise<string[]> {
+  const res = await tryFetch<{ models: string[] }>("/models");
+  return res?.models ?? [];
+}
+
+export async function regenerateCopyAll(
+  jobId: string,
+  clipId: string,
+  payload: CopyChatPayload = {},
+): Promise<Clip | null> {
+  const res = await tryFetch<{ clip: Clip }>(
+    `/jobs/${jobId}/clips/${clipId}/copy`,
+    { method: "POST", body: JSON.stringify(payload) },
+  );
+  return res?.clip ?? null;
+}
+
+export async function regenerateCopyField(
+  jobId: string,
+  clipId: string,
+  field: CopyField,
+  payload: CopyChatPayload,
+): Promise<{ clip: Clip; value: unknown } | null> {
+  const res = await tryFetch<{ clip: Clip; value: unknown; field: string }>(
+    `/jobs/${jobId}/clips/${clipId}/copy/${field}`,
+    { method: "POST", body: JSON.stringify(payload) },
+  );
+  return res ? { clip: res.clip, value: res.value } : null;
+}
+
+export async function saveCopy(
+  jobId: string,
+  clipId: string,
+  patch: Partial<Pick<Clip, "caption" | "description" | "hashtags" | "cta">>,
+): Promise<Clip | null> {
+  const res = await tryFetch<{ clip: Clip }>(
+    `/jobs/${jobId}/clips/${clipId}/copy`,
+    { method: "PATCH", body: JSON.stringify(patch) },
+  );
+  return res?.clip ?? null;
+}
+
 function guessTitle(input: CreateJobInput): string {
   if (input.kind === "youtube") return "Vídeo do YouTube";
   return input.source.replace(/\.[^.]+$/, "");
