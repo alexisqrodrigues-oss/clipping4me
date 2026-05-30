@@ -74,7 +74,7 @@ Tudo fica em `~/Clipping4me/`:
 
 | Var | Default | O que faz |
 |---|---|---|
-| `CLIPPING4ME_ROOT` | `/Users/axis/Dev/clipping4melocal/Documents` | onde tudo é salvo |
+| `CLIPPING4ME_ROOT` | `/Users/axis/Dev/clipping4me/Documents` | onde tudo é salvo |
 | `OLLAMA_URL` | `http://localhost:11434` | endpoint do Ollama |
 | `OLLAMA_MODEL` | `llama3.1:8b` | modelo usado para escolher cortes |
 | `WHISPER_MODEL` | `small` | `tiny`, `base`, `small`, `medium`, `large` |

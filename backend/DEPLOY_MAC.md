@@ -25,7 +25,7 @@ Roteiro completo. Faça **uma vez** e está pronto.
 Pra criar o admin inicial.
 
 ```bash
-cd /Users/axis/Dev/clipping4melocal/backend
+cd /Users/axis/Dev/clipping4me/backend
 ADMIN_BOOTSTRAP_PASSWORD='SuaSenhaForte123' bash run.sh
 ```
 
@@ -85,7 +85,7 @@ Na UI (no celular, laptop, qualquer lugar): clica no chip `● online` no header
 O arquivo `me.clipping4.backend.plist` já vem pronto neste repo. Cópia + ativa:
 
 ```bash
-cp /Users/axis/Dev/clipping4melocal/backend/me.clipping4.backend.plist \
+cp /Users/axis/Dev/clipping4me/backend/me.clipping4.backend.plist \
    ~/Library/LaunchAgents/
 
 launchctl load -w ~/Library/LaunchAgents/me.clipping4.backend.plist
@@ -110,14 +110,14 @@ launchctl unload ~/Library/LaunchAgents/me.clipping4.backend.plist
 launchctl load -w ~/Library/LaunchAgents/me.clipping4.backend.plist
 ```
 
-> **Importante:** o `.plist` aponta pro caminho `/Users/axis/Dev/clipping4melocal/backend/run.sh`. Se você mudar de pasta, edita o `.plist` e recarrega.
+> **Importante:** o `.plist` aponta pro caminho `/Users/axis/Dev/clipping4me/backend/run.sh`. Se você mudar de pasta, edita o `.plist` e recarrega.
 
 ---
 
 ## 5. Daqui pra frente
 
 - Reiniciou o Mac? Backend sobe sozinho via LaunchAgent. Tailscale sobe sozinho. Tudo só funciona.
-- Esqueceu a senha do admin? Pare o backend (`launchctl unload …`), delete `/Users/axis/Dev/clipping4melocal/Documents/users.json`, suba de novo com `ADMIN_BOOTSTRAP_PASSWORD=…`. Vai recriar o admin.
+- Esqueceu a senha do admin? Pare o backend (`launchctl unload …`), delete `/Users/axis/Dev/clipping4me/Documents/users.json`, suba de novo com `ADMIN_BOOTSTRAP_PASSWORD=…`. Vai recriar o admin.
 - Quer dar acesso pra alguém? Login como admin → `/admin` → cria usuário com role `user`.
 - Quer revogar acesso? `/admin` → deletar usuário (mata também todas as sessões dele).
 

@@ -8,7 +8,7 @@ Três blocos independentes. Faço o que depende de código (1 e 2), e te entrego
 ## 1. Sistema de login no backend
 
 **Tecnologia simples, sem dependências externas pesadas:**
-- Usuários salvos em `users.json` dentro de `/Users/axis/Dev/clipping4melocal/Documents/`
+- Usuários salvos em `users.json` dentro de `/Users/axis/Dev/clipping4me/Documents/`
 - Senha com hash **bcrypt** (única dependência nova: `bcrypt`)
 - Sessões com **token opaco** (random hex de 32 bytes), salvo em `sessions.json`
 - Sem e-mail, sem recuperação de senha (admin reseta manualmente)
