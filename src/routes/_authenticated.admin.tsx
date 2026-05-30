@@ -9,10 +9,20 @@ import {
 } from "@/lib/auth";
 
 export const Route = createFileRoute("/_authenticated/admin")({
-  beforeLoad: () => {
+  beforeLoad: async () => {
     if (typeof window === "undefined") return;
-    const u = getUser();
-    if (!u || u.role !== "admin") {
+    // Server-verified role check: client-side localStorage can be tampered
+    // with (a user can flip role to "admin" in DevTools), so we ask the
+    // backend to confirm the current session belongs to an admin before
+    // rendering any admin UI.
+    try {
+      const res = await authFetch(`${getBackendUrl()}/auth/me`);
+      if (!res.ok) throw redirect({ to: "/" });
+      const me = (await res.json()) as AuthUser;
+      if (me.role !== "admin") throw redirect({ to: "/" });
+    } catch (e) {
+      // Re-throw redirects; turn any other failure into a redirect home.
+      if (e && typeof e === "object" && "to" in (e as object)) throw e;
       throw redirect({ to: "/" });
     }
   },
