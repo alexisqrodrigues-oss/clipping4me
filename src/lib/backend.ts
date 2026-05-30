@@ -58,7 +58,7 @@ export const BACKEND_URL =
 
 async function tryFetch<T>(path: string, init?: RequestInit): Promise<T | null> {
   try {
-    const res = await fetch(`${BACKEND_URL}${path}`, {
+    const res = await fetch(`${getBackendUrl()}${path}`, {
       ...init,
       headers: { "Content-Type": "application/json", ...(init?.headers ?? {}) },
     });
@@ -190,7 +190,7 @@ export async function createJob(
       if (input.podcast_title) fd.append("podcast_title", input.podcast_title);
       fd.append("video", input.videoFile);
       if (input.srtFile) fd.append("srt", input.srtFile);
-      const res = await fetch(`${BACKEND_URL}/jobs/upload`, {
+      const res = await fetch(`${getBackendUrl()}/jobs/upload`, {
         method: "POST",
         body: fd,
       });
@@ -247,7 +247,7 @@ function withAbsoluteUrls(job: Job): Job {
 function absolutize(path?: string): string | undefined {
   if (!path) return path;
   if (path.startsWith("http")) return path;
-  return `${BACKEND_URL}${path}`;
+  return `${getBackendUrl()}${path}`;
 }
 
 export async function openFolder(jobId: string, clipId?: string): Promise<boolean> {
@@ -320,7 +320,7 @@ export function formatRelative(iso: string): string {
 
 export async function checkHealth(): Promise<boolean> {
   try {
-    const res = await fetch(`${BACKEND_URL}/health`, {
+    const res = await fetch(`${getBackendUrl()}/health`, {
       method: "GET",
       signal: AbortSignal.timeout(2000),
     });
