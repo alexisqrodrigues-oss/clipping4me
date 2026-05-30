@@ -4,14 +4,16 @@ import {
   Link,
   createRootRouteWithContext,
   useRouter,
+  useRouterState,
   HeadContent,
   Scripts,
 } from "@tanstack/react-router";
-import { useEffect, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 
 import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
 import { BackendStatus } from "../components/BackendStatus";
+import { getUser, logout, subscribeAuth, type AuthUser } from "../lib/auth";
 
 function NotFoundComponent() {
   return (
@@ -147,6 +149,21 @@ function RootComponent() {
 }
 
 function SiteHeader() {
+  const [user, setUser] = useState<AuthUser | null>(() => getUser());
+  const router = useRouter();
+  const pathname = useRouterState({ select: (s) => s.location.pathname });
+  const isLoginPage = pathname.startsWith("/login");
+
+  useEffect(() => {
+    const unsub = subscribeAuth(() => setUser(getUser()));
+    return unsub;
+  }, []);
+
+  async function onLogout() {
+    await logout();
+    router.navigate({ to: "/login" });
+  }
+
   return (
     <header className="sticky top-0 z-20 border-b border-border bg-background/80 backdrop-blur">
       <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-4">
@@ -165,20 +182,50 @@ function SiteHeader() {
         </Link>
         <nav className="flex items-center gap-2">
           <BackendStatus />
-          <Link
-            to="/"
-            className="rounded-md px-3 py-2 text-sm text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
-            activeOptions={{ exact: true }}
-            activeProps={{ className: "bg-secondary text-foreground" }}
-          >
-            Jobs
-          </Link>
-          <Link
-            to="/new"
-            className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-opacity hover:opacity-90"
-          >
-            Novo corte
-          </Link>
+          {user && !isLoginPage ? (
+            <>
+              <Link
+                to="/"
+                className="rounded-md px-3 py-2 text-sm text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
+                activeOptions={{ exact: true }}
+                activeProps={{ className: "bg-secondary text-foreground" }}
+              >
+                Jobs
+              </Link>
+              {user.role === "admin" && (
+                <Link
+                  to="/admin"
+                  className="rounded-md px-3 py-2 text-sm text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
+                  activeProps={{ className: "bg-secondary text-foreground" }}
+                >
+                  Admin
+                </Link>
+              )}
+              <Link
+                to="/new"
+                className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-opacity hover:opacity-90"
+              >
+                Novo corte
+              </Link>
+              <div className="ml-2 flex items-center gap-2 border-l border-border pl-3">
+                <div className="text-right leading-tight">
+                  <div className="font-mono text-xs text-foreground">
+                    {user.username}
+                  </div>
+                  <div className="font-mono text-[9px] uppercase tracking-widest text-muted-foreground">
+                    {user.role}
+                  </div>
+                </div>
+                <button
+                  onClick={onLogout}
+                  className="rounded border border-border bg-surface px-2.5 py-1.5 font-mono text-[10px] uppercase tracking-widest text-muted-foreground hover:text-foreground"
+                  title="Sair"
+                >
+                  sair
+                </button>
+              </div>
+            </>
+          ) : null}
         </nav>
       </div>
     </header>
