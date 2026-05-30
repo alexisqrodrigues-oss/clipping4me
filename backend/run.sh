@@ -41,4 +41,10 @@ source .venv/bin/activate
 python -m pip install -q --upgrade pip "setuptools<81" wheel
 python -m pip install -q --no-build-isolation -r requirements.txt
 
-exec python -m uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+UVICORN_ARGS=(app.main:app --host 0.0.0.0 --port "${CLIPPING4ME_BACKEND_PORT:-8000}")
+
+if [ "${CLIPPING4ME_RELOAD:-0}" = "1" ]; then
+  UVICORN_ARGS+=(--reload)
+fi
+
+exec python -m uvicorn "${UVICORN_ARGS[@]}"

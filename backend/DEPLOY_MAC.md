@@ -25,7 +25,7 @@ Roteiro completo. Faça **uma vez** e está pronto.
 Pra criar o admin inicial.
 
 ```bash
-cd /Users/axis/Dev/clipping4me/backend
+cd /CAMINHO/DO/SEU/clone/clipping4me/backend
 ADMIN_BOOTSTRAP_PASSWORD='SuaSenhaForte123' bash run.sh
 ```
 
@@ -39,7 +39,7 @@ curl http://localhost:8000/health
 
 curl -X POST http://localhost:8000/auth/login \
   -H "Content-Type: application/json" \
-  -d '{"username":"axis","password":"SuaSenhaForte123"}'
+  -d '{"username":"admin","password":"SuaSenhaForte123"}'
 # {"token": "...", "user": {...}}
 ```
 
@@ -82,13 +82,10 @@ Na UI (no celular, laptop, qualquer lugar): clica no chip `● online` no header
 
 ## 4. Auto-start do backend (LaunchAgent)
 
-O arquivo `me.clipping4.backend.plist` já vem pronto neste repo. Cópia + ativa:
+Use o instalador do repo para gerar o `plist` com o caminho real do seu clone:
 
 ```bash
-cp /Users/axis/Dev/clipping4me/backend/me.clipping4.backend.plist \
-   ~/Library/LaunchAgents/
-
-launchctl load -w ~/Library/LaunchAgents/me.clipping4.backend.plist
+bash backend/install-launchagent.sh
 ```
 
 Verifica:
@@ -110,14 +107,14 @@ launchctl unload ~/Library/LaunchAgents/me.clipping4.backend.plist
 launchctl load -w ~/Library/LaunchAgents/me.clipping4.backend.plist
 ```
 
-> **Importante:** o `.plist` aponta pro caminho `/Users/axis/Dev/clipping4me/backend/run.sh`. Se você mudar de pasta, edita o `.plist` e recarrega.
+> Se você mover a pasta do projeto depois, rode `bash backend/install-launchagent.sh` de novo.
 
 ---
 
 ## 5. Daqui pra frente
 
 - Reiniciou o Mac? Backend sobe sozinho via LaunchAgent. Tailscale sobe sozinho. Tudo só funciona.
-- Esqueceu a senha do admin? Pare o backend (`launchctl unload …`), delete `/Users/axis/Dev/clipping4me/Documents/users.json`, suba de novo com `ADMIN_BOOTSTRAP_PASSWORD=…`. Vai recriar o admin.
+- Esqueceu a senha do admin? Pare o backend (`launchctl unload …`), delete `~/Clipping4me/users.json`, suba de novo com `ADMIN_BOOTSTRAP_PASSWORD=…`. Vai recriar o admin.
 - Quer dar acesso pra alguém? Login como admin → `/admin` → cria usuário com role `user`.
 - Quer revogar acesso? `/admin` → deletar usuário (mata também todas as sessões dele).
 
@@ -135,7 +132,7 @@ cloudflared tunnel route dns clipping4me clipping.seudominio.com
 
 # config em ~/.cloudflared/config.yml:
 # tunnel: clipping4me
-# credentials-file: /Users/axis/.cloudflared/<UUID>.json
+# credentials-file: /Users/SEU_USUARIO/.cloudflared/<UUID>.json
 # ingress:
 #   - hostname: clipping.seudominio.com
 #     service: http://localhost:8000

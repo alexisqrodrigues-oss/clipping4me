@@ -5,7 +5,7 @@ import os
 from pathlib import Path
 
 HOME = Path.home()
-DEFAULT_ROOT = Path("/Users/axis/Dev/clipping4me/Documents")
+DEFAULT_ROOT = HOME / "Clipping4me"
 ROOT_DIR = Path(os.environ.get("CLIPPING4ME_ROOT", DEFAULT_ROOT))
 CORTES_DIR = ROOT_DIR / "Cortes"
 JOBS_DIR = ROOT_DIR / "Jobs"          # work files por job (download, srt, mp4 originais)

@@ -26,7 +26,7 @@ cd backend
 ADMIN_BOOTSTRAP_PASSWORD='SuaSenhaForte' bash run.sh
 ```
 
-Na primeira execução o `run.sh` prefere Python 3.11, cria `.venv`, instala tudo e cria um usuário admin (`axis`) com a senha que você passar em `ADMIN_BOOTSTRAP_PASSWORD`. Whisper baixa ~500MB do modelo na primeira transcrição.
+Na primeira execução o `run.sh` prefere Python 3.11, cria `.venv`, instala tudo e cria um usuário admin (`admin` por padrão) com a senha que você passar em `ADMIN_BOOTSTRAP_PASSWORD`. Whisper baixa ~500MB do modelo na primeira transcrição.
 
 Sem `ADMIN_BOOTSTRAP_PASSWORD`, uma senha aleatória é gerada e impressa **uma vez** no log — anote.
 
@@ -44,7 +44,7 @@ curl http://localhost:8000/health
 ## 3. Conectar a UI
 
 1. Abra a UI. Vai aparecer a tela de login.
-2. Entre com `axis` + sua senha.
+2. Entre com `admin` + sua senha (ou outro valor, se você definir `ADMIN_USERNAME`).
 3. Pra trocar a URL do backend, clica no chip `● online/offline` no header → cola a URL → salvar.
 4. Pra criar mais usuários: menu **Admin** (só visível pra admins).
 
@@ -74,7 +74,7 @@ Tudo fica em `~/Clipping4me/`:
 
 | Var | Default | O que faz |
 |---|---|---|
-| `CLIPPING4ME_ROOT` | `/Users/axis/Dev/clipping4me/Documents` | onde tudo é salvo |
+| `CLIPPING4ME_ROOT` | `~/Clipping4me` | onde tudo é salvo |
 | `OLLAMA_URL` | `http://localhost:11434` | endpoint do Ollama |
 | `OLLAMA_MODEL` | `llama3.1:8b` | modelo usado para escolher cortes |
 | `WHISPER_MODEL` | `small` | `tiny`, `base`, `small`, `medium`, `large` |
