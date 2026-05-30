@@ -80,7 +80,11 @@ async function tryFetch<T>(path: string, init?: RequestInit): Promise<T | null> 
     const { authFetch } = await import("./auth");
     const res = await authFetch(`${getBackendUrl()}${path}`, {
       ...init,
-      headers: { "Content-Type": "application/json", ...(init?.headers ?? {}) },
+      headers: {
+        "Content-Type": "application/json",
+        "ngrok-skip-browser-warning": "true",
+        ...(init?.headers ?? {}),
+      },
     });
     if (!res.ok) return null;
     return (await res.json()) as T;
@@ -350,6 +354,7 @@ export async function checkHealth(): Promise<boolean> {
   try {
     const res = await fetch(`${getBackendUrl()}/health`, {
       method: "GET",
+      headers: { "ngrok-skip-browser-warning": "true" },
       signal: AbortSignal.timeout(2000),
     });
     return res.ok;
