@@ -38,7 +38,7 @@ async def run_job(job: Job) -> None:
             update_job(job.id, status="transcribing", progress=30)
             audio = work / "audio.wav"
             await cutter.extract_audio(source_video, audio)
-            srt_segments = await asyncio.to_thread(transcribe.transcribe, audio)
+            srt_segments = await asyncio.to_thread(transcribe.transcribe_diarized, audio)
 
         # 3) Verifica Ollama antes de chamar
         update_job(job.id, status="analyzing", progress=50)
@@ -102,6 +102,8 @@ async def run_job(job: Job) -> None:
             _write_srt(srt_path, srt_segments, start, end)
 
             clip_id = f"{job.id}_c{i:02d}"
+            inside_segs = [s for s in srt_segments if s["end"] > start and s["start"] < end]
+            speakers_in_clip = sorted({s["speaker"] for s in inside_segs if s.get("speaker")})
             clips.append(
                 Clip(
                     id=clip_id,
@@ -116,6 +118,7 @@ async def run_job(job: Job) -> None:
                     duration=end - start,
                     segments=segments_out,
                     folder_path=str(clip_dir),
+                    speakers=speakers_in_clip,
                 )
             )
 
@@ -172,16 +175,31 @@ def _slice_segments(all_segs: list[dict], start: float, end: float, pick: dict) 
     if hook:
         out.append(ClipSegment(
             role="hook", start=hook[0]["start"], end=hook[-1]["end"],
-            text=" ".join(s["text"] for s in hook)))
+            text=" ".join(s["text"] for s in hook),
+            speaker=_dominant_speaker(hook)))
     if dev:
         out.append(ClipSegment(
             role="dev", start=dev[0]["start"], end=dev[-1]["end"],
-            text=" ".join(s["text"] for s in dev)[:200]))
+            text=" ".join(s["text"] for s in dev)[:200],
+            speaker=_dominant_speaker(dev)))
     if close:
         out.append(ClipSegment(
             role="close", start=close[0]["start"], end=close[-1]["end"],
-            text=" ".join(s["text"] for s in close)))
+            text=" ".join(s["text"] for s in close),
+            speaker=_dominant_speaker(close)))
     return out
+
+
+def _dominant_speaker(segs: list[dict]) -> str | None:
+    counts: dict[str, float] = {}
+    for s in segs:
+        sp = s.get("speaker")
+        if not sp:
+            continue
+        counts[sp] = counts.get(sp, 0.0) + max(0.0, s["end"] - s["start"])
+    if not counts:
+        return None
+    return max(counts.items(), key=lambda x: x[1])[0]
 
 
 def _write_srt(path: Path, all_segs: list[dict], start: float, end: float) -> None:

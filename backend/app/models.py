@@ -17,6 +17,7 @@ class ClipSegment(BaseModel):
     start: float
     end: float
     text: str
+    speaker: Optional[str] = None  # SPEAKER_00, SPEAKER_01, … (None se diarização off)
 
 
 class Clip(BaseModel):
@@ -36,6 +37,7 @@ class Clip(BaseModel):
     caption: Optional[str] = None        # texto curto pra overlay/post
     hashtags: List[str] = []             # lista de hashtags sem o #
     cta: Optional[str] = None            # call-to-action curto
+    speakers: List[str] = []             # vozes detectadas dentro deste corte
 
 
 class Job(BaseModel):

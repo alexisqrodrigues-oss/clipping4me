@@ -22,6 +22,7 @@ export interface ClipSegment {
   start: number;
   end: number;
   text: string;
+  speaker?: string | null;
 }
 
 export interface Clip {
@@ -40,6 +41,7 @@ export interface Clip {
   caption?: string;
   hashtags?: string[];
   cta?: string;
+  speakers?: string[];
 }
 
 export interface Job {
@@ -364,6 +366,16 @@ export async function saveCopy(
     { method: "PATCH", body: JSON.stringify(patch) },
   );
   return res?.clip ?? null;
+}
+
+/** URL absoluta autenticada (com ?token=) pra download direto via <a href>. */
+export function downloadClipUrl(jobId: string, clipId: string): string {
+  const base = `${getBackendUrl()}/jobs/${jobId}/clips/${clipId}/download`;
+  const token =
+    typeof window === "undefined"
+      ? null
+      : window.localStorage.getItem("clipping4me:token");
+  return token ? `${base}?token=${encodeURIComponent(token)}` : base;
 }
 
 function guessTitle(input: CreateJobInput): string {
