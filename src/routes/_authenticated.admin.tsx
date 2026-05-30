@@ -1,4 +1,4 @@
-import { createFileRoute, redirect } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { getBackendUrl } from "@/lib/backend";
 import {
@@ -9,23 +9,6 @@ import {
 } from "@/lib/auth";
 
 export const Route = createFileRoute("/_authenticated/admin")({
-  beforeLoad: async () => {
-    if (typeof window === "undefined") return;
-    // Server-verified role check: client-side localStorage can be tampered
-    // with (a user can flip role to "admin" in DevTools), so we ask the
-    // backend to confirm the current session belongs to an admin before
-    // rendering any admin UI.
-    try {
-      const res = await authFetch(`${getBackendUrl()}/auth/me`);
-      if (!res.ok) throw redirect({ to: "/" });
-      const me = (await res.json()) as AuthUser;
-      if (me.role !== "admin") throw redirect({ to: "/" });
-    } catch (e) {
-      // Re-throw redirects; turn any other failure into a redirect home.
-      if (e && typeof e === "object" && "to" in (e as object)) throw e;
-      throw redirect({ to: "/" });
-    }
-  },
   head: () => ({ meta: [{ title: "Admin — Clipping4me" }] }),
   component: AdminPage,
 });
@@ -44,8 +27,149 @@ async function api<T>(path: string, init?: RequestInit): Promise<T> {
   return (await res.json()) as T;
 }
 
+type GateStatus =
+  | { kind: "checking" }
+  | { kind: "ok"; me: AuthUser }
+  | {
+      kind: "blocked";
+      reason: "offline" | "unauthenticated" | "not_admin" | "unknown";
+      detail: string;
+      me?: AuthUser | null;
+    };
+
+function AdminGate({ children }: { children: (me: AuthUser) => React.ReactNode }) {
+  const [status, setStatus] = useState<GateStatus>({ kind: "checking" });
+
+  async function check() {
+    setStatus({ kind: "checking" });
+    const backend = getBackendUrl();
+    try {
+      const res = await authFetch(`${backend}/auth/me`);
+      if (res.status === 401 || res.status === 403) {
+        setStatus({
+          kind: "blocked",
+          reason: "unauthenticated",
+          detail: `O backend respondeu ${res.status}. Sua sessão expirou ou o token é inválido. Faça login novamente.`,
+          me: getUser(),
+        });
+        return;
+      }
+      if (!res.ok) {
+        const body = await res.text().catch(() => "");
+        setStatus({
+          kind: "blocked",
+          reason: "unknown",
+          detail: `O backend respondeu ${res.status} ao verificar sua identidade. ${body || ""}`.trim(),
+          me: getUser(),
+        });
+        return;
+      }
+      const me = (await res.json()) as AuthUser;
+      if (me.role !== "admin") {
+        setStatus({
+          kind: "blocked",
+          reason: "not_admin",
+          detail: `Você está logado como "${me.username}" com o papel "${me.role}". Apenas usuários com papel "admin" podem acessar esta tela.`,
+          me,
+        });
+        return;
+      }
+      setStatus({ kind: "ok", me });
+    } catch (e) {
+      // Tipicamente "Load failed" / TypeError: backend fora do ar
+      const msg = e instanceof Error ? e.message : String(e);
+      setStatus({
+        kind: "blocked",
+        reason: "offline",
+        detail: `Não consegui falar com o backend em ${backend}. Verifique se o servidor está rodando (rode o Clipping4Me.command no Mac) e tente novamente. Detalhe técnico: ${msg}`,
+        me: getUser(),
+      });
+    }
+  }
+
+  useEffect(() => {
+    void check();
+  }, []);
+
+  if (status.kind === "checking") {
+    return (
+      <main className="relative z-10 mx-auto max-w-3xl px-6 py-20">
+        <div className="font-mono text-xs uppercase tracking-[0.2em] text-muted-foreground">
+          Admin
+        </div>
+        <div className="mt-4 h-24 animate-pulse rounded-lg border border-border bg-surface" />
+        <p className="mt-3 font-mono text-[11px] text-muted-foreground">
+          Verificando permissões com o backend…
+        </p>
+      </main>
+    );
+  }
+
+  if (status.kind === "blocked") {
+    const titles: Record<typeof status.reason, string> = {
+      offline: "Backend offline",
+      unauthenticated: "Sessão inválida",
+      not_admin: "Sem permissão de admin",
+      unknown: "Erro inesperado",
+    };
+    return (
+      <main className="relative z-10 mx-auto max-w-3xl px-6 py-20">
+        <div className="font-mono text-xs uppercase tracking-[0.2em] text-muted-foreground">
+          Admin · acesso negado
+        </div>
+        <h1 className="mt-2 font-display text-4xl leading-[1.05]">
+          {titles[status.reason]}.
+        </h1>
+
+        <div className="mt-6 rounded-lg border border-destructive/30 bg-destructive/10 p-5">
+          <p className="font-mono text-sm leading-relaxed text-foreground">
+            {status.detail}
+          </p>
+          {status.me && (
+            <p className="mt-3 font-mono text-[11px] uppercase tracking-widest text-muted-foreground">
+              sessão local: {status.me.username} · {status.me.role} · {status.me.id}
+            </p>
+          )}
+          <p className="mt-3 font-mono text-[11px] uppercase tracking-widest text-muted-foreground">
+            backend: {getBackendUrl()}
+          </p>
+        </div>
+
+        <div className="mt-6 flex flex-wrap gap-2">
+          <button
+            onClick={() => void check()}
+            className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:opacity-90"
+          >
+            Tentar de novo
+          </button>
+          {status.reason === "unauthenticated" ? (
+            <Link
+              to="/login"
+              className="rounded-md border border-border bg-surface px-4 py-2 text-sm hover:bg-surface-2"
+            >
+              Ir para login
+            </Link>
+          ) : (
+            <Link
+              to="/app"
+              className="rounded-md border border-border bg-surface px-4 py-2 text-sm hover:bg-surface-2"
+            >
+              Voltar para o app
+            </Link>
+          )}
+        </div>
+      </main>
+    );
+  }
+
+  return <>{children(status.me)}</>;
+}
+
 function AdminPage() {
-  const me = getUser();
+  return <AdminGate>{(me) => <AdminPanel me={me} />}</AdminGate>;
+}
+
+function AdminPanel({ me }: { me: AuthUser }) {
   const [users, setUsers] = useState<AdminUser[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
