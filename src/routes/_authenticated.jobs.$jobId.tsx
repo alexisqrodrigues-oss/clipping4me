@@ -10,7 +10,7 @@ import {
   type Job,
 } from "@/lib/backend";
 
-export const Route = createFileRoute("/jobs/$jobId")({
+export const Route = createFileRoute("/_authenticated/jobs/$jobId")({
   head: ({ params }) => ({
     meta: [
       { title: `Job ${params.jobId} — Clipping4me` },
