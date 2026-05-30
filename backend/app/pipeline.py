@@ -38,7 +38,7 @@ async def run_job(job: Job) -> None:
             update_job(job.id, status="transcribing", progress=30)
             audio = work / "audio.wav"
             await cutter.extract_audio(source_video, audio)
-            srt_segments = await asyncio.to_thread(transcribe.transcribe, audio)
+            srt_segments = await asyncio.to_thread(transcribe.transcribe_diarized, audio)
 
         # 3) Verifica Ollama antes de chamar
         update_job(job.id, status="analyzing", progress=50)
@@ -102,6 +102,8 @@ async def run_job(job: Job) -> None:
             _write_srt(srt_path, srt_segments, start, end)
 
             clip_id = f"{job.id}_c{i:02d}"
+            inside_segs = [s for s in srt_segments if s["end"] > start and s["start"] < end]
+            speakers_in_clip = sorted({s["speaker"] for s in inside_segs if s.get("speaker")})
             clips.append(
                 Clip(
                     id=clip_id,
@@ -116,6 +118,7 @@ async def run_job(job: Job) -> None:
                     duration=end - start,
                     segments=segments_out,
                     folder_path=str(clip_dir),
+                    speakers=speakers_in_clip,
                 )
             )
 
