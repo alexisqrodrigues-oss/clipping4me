@@ -21,6 +21,14 @@ FRONTEND_URL = os.environ.get("FRONTEND_URL", "https://clipping4.me")
 
 # Whisper
 WHISPER_MODEL = os.environ.get("WHISPER_MODEL", "small")  # tiny | base | small | medium | large
+WHISPER_DEVICE = os.environ.get("WHISPER_DEVICE", "auto")  # auto | cpu | mps | cuda
+WHISPER_LANGUAGE = os.environ.get("WHISPER_LANGUAGE", "pt")
+
+# Diarização (WhisperX + pyannote). Opt-in: requer HF_TOKEN e install extra.
+USE_WHISPERX = os.environ.get("USE_WHISPERX", "false").lower() in ("1", "true", "yes")
+HF_TOKEN = os.environ.get("HF_TOKEN", "")
+DIARIZE_MIN_SPEAKERS = int(os.environ.get("DIARIZE_MIN_SPEAKERS", "1"))
+DIARIZE_MAX_SPEAKERS = int(os.environ.get("DIARIZE_MAX_SPEAKERS", "6"))
 
 # Quantos cortes pedir ao LLM por padrão
 MAX_CLIPS = int(os.environ.get("MAX_CLIPS", "8"))
