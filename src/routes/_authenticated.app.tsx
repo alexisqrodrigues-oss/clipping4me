@@ -1,6 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { Link } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
+import { useOnlineStatus } from "@/hooks/useOnlineStatus";
 import {
   formatRelative,
   listJobs,
@@ -30,22 +31,28 @@ export const Route = createFileRoute("/_authenticated/app")({
 function Index() {
   const [jobs, setJobs] = useState<Job[]>([]);
   const [loading, setLoading] = useState(true);
+  const { fullyOnline } = useOnlineStatus();
 
   useEffect(() => {
     let cancelled = false;
     const refresh = async () => {
+      if (!fullyOnline) {
+        // Em modo offline, mantém o último cache visível e para o polling.
+        setLoading(false);
+        return;
+      }
       const res = await listJobs();
       if (cancelled) return;
       setJobs(res.jobs);
       setLoading(false);
     };
     refresh();
-    const t = setInterval(refresh, 2000);
+    const t = setInterval(refresh, fullyOnline ? 2000 : 15000);
     return () => {
       cancelled = true;
       clearInterval(t);
     };
-  }, []);
+  }, [fullyOnline]);
 
   return (
     <main className="relative z-10 mx-auto max-w-6xl px-6 py-12">
