@@ -26,10 +26,18 @@ def _write_raw(data: Dict[str, dict]) -> None:
     STATE_FILE.write_text(json.dumps(data, indent=2, ensure_ascii=False))
 
 
-def list_jobs() -> List[Job]:
+def list_jobs(user_id: str | None = None, include_all: bool = False) -> List[Job]:
+    """List jobs.
+
+    - If ``include_all`` is True (admin), return every job.
+    - Otherwise return only jobs whose ``user_id`` matches ``user_id``.
+      Legacy jobs without a ``user_id`` are hidden from non-admins.
+    """
     with _lock:
         raw = _read_raw()
     jobs = [Job(**v) for v in raw.values()]
+    if not include_all:
+        jobs = [j for j in jobs if user_id is not None and j.user_id == user_id]
     jobs.sort(key=lambda j: j.created_at, reverse=True)
     return jobs
 
