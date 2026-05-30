@@ -63,10 +63,12 @@ function normalizeBackendUrl(url: string | null | undefined): string {
 
 function readUrlFromQuery(): string | null {
   if (typeof window === "undefined") return null;
-  const candidate = normalizeBackendUrl(
-    new URLSearchParams(window.location.search).get("backend"),
-  );
+  const params = new URLSearchParams(window.location.search);
+  const candidate = normalizeBackendUrl(params.get("backend"));
   if (!candidate) return null;
+  params.delete("backend");
+  const next = `${window.location.pathname}${params.toString() ? `?${params.toString()}` : ""}${window.location.hash}`;
+  window.history.replaceState({}, "", next);
   window.localStorage.setItem(BACKEND_URL_KEY, candidate);
   return candidate;
 }

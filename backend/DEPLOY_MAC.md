@@ -132,7 +132,7 @@ cloudflared tunnel route dns clipping4me clipping.seudominio.com
 
 # config em ~/.cloudflared/config.yml:
 # tunnel: clipping4me
-# credentials-file: /Users/axis/.cloudflared/<UUID>.json
+# credentials-file: /Users/SEU_USUARIO/.cloudflared/<UUID>.json
 # ingress:
 #   - hostname: clipping.seudominio.com
 #     service: http://localhost:8000

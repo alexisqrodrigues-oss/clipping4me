@@ -9,7 +9,7 @@ Fluxo local para clonar o repositório, dar um clique e subir frontend + backend
 - `backend/run.sh` só cuida do backend Python
 - `backend/install-launchagent.sh` gera o LaunchAgent com o caminho real do clone
 - frontend aceita `?backend=` automaticamente, então o launcher já abre a UI apontando pro backend certo
-- backend sem caminhos fixos para `/Users/axis/...`
+- backend sem caminhos fixos de usuário/máquina
 
 ## Estrutura correta
 
