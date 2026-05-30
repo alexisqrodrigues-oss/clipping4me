@@ -22,6 +22,7 @@ export interface ClipSegment {
   start: number;
   end: number;
   text: string;
+  speaker?: string | null;
 }
 
 export interface Clip {
@@ -40,6 +41,7 @@ export interface Clip {
   caption?: string;
   hashtags?: string[];
   cta?: string;
+  speakers?: string[];
 }
 
 export interface Job {
