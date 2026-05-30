@@ -42,8 +42,10 @@ Browser  ──►  www.clipping4.me (TanStack Start na Lovable)
 ### 1. Clonar
 
 ```bash
+mkdir -p /Users/axis/Dev
+cd /Users/axis/Dev
 git clone https://github.com/alexisqrodrigues-oss/clipping4me.git
-cd clipping4me
+cd /Users/axis/Dev/clipping4me
 ```
 
 ### 2. Instalar dependências de sistema (uma vez)

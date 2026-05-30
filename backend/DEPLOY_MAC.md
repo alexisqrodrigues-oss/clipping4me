@@ -25,7 +25,7 @@ Roteiro completo. Eu já deixei os arquivos no repo; no Mac você só clona e ro
 Pra criar o admin inicial.
 
 ```bash
-cd /CAMINHO/DO/SEU/clone/clipping4me/backend
+cd /Users/axis/Dev/clipping4me/backend
 ADMIN_BOOTSTRAP_PASSWORD='SuaSenhaForte123' bash run.sh
 ```
 
@@ -120,7 +120,10 @@ launchctl load -w ~/Library/LaunchAgents/me.clipping4.backend.plist
 
 ```bash
 brew install python@3.11 ffmpeg yt-dlp ollama cloudflared
-cd ~/SEU-CAMINHO/clipping4me
+mkdir -p /Users/axis/Dev
+cd /Users/axis/Dev
+git clone https://github.com/alexisqrodrigues-oss/clipping4me.git
+cd /Users/axis/Dev/clipping4me
 cloudflared tunnel login
 bash backend/install-cloudflare.sh
 ADMIN_BOOTSTRAP_PASSWORD='SuaSenhaForte123' bash run.sh

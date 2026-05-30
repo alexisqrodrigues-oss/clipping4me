@@ -22,7 +22,7 @@ ollama pull qwen2.5-coder:7b # pode trocar depois se quiser
 ## 2. Subir o backend
 
 ```bash
-cd backend
+cd /Users/axis/Dev/clipping4me/backend
 ADMIN_BOOTSTRAP_PASSWORD='SuaSenhaForte' bash run.sh
 ```
 
@@ -50,7 +50,7 @@ curl http://localhost:8000/health
 
 ## Estrutura de arquivos gerados
 
-Tudo fica em `~/Clipping4me/`:
+Tudo fica em `~/Clipping4me/` por padrão, com o repo em `/Users/axis/Dev/clipping4me`:
 
 ```
 ~/Clipping4me/
