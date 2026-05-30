@@ -1,6 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { Link } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
+import { useOnlineStatus } from "@/hooks/useOnlineStatus";
 import {
   formatRelative,
   listJobs,
@@ -8,7 +9,7 @@ import {
   type Job,
 } from "@/lib/backend";
 
-export const Route = createFileRoute("/_authenticated/")({
+export const Route = createFileRoute("/_authenticated/app")({
   head: () => ({
     meta: [
       { title: "Clipping4me — seus jobs" },
@@ -30,22 +31,28 @@ export const Route = createFileRoute("/_authenticated/")({
 function Index() {
   const [jobs, setJobs] = useState<Job[]>([]);
   const [loading, setLoading] = useState(true);
+  const { fullyOnline } = useOnlineStatus();
 
   useEffect(() => {
     let cancelled = false;
     const refresh = async () => {
+      if (!fullyOnline) {
+        // Em modo offline, mantém o último cache visível e para o polling.
+        setLoading(false);
+        return;
+      }
       const res = await listJobs();
       if (cancelled) return;
       setJobs(res.jobs);
       setLoading(false);
     };
     refresh();
-    const t = setInterval(refresh, 2000);
+    const t = setInterval(refresh, fullyOnline ? 2000 : 15000);
     return () => {
       cancelled = true;
       clearInterval(t);
     };
-  }, []);
+  }, [fullyOnline]);
 
   return (
     <main className="relative z-10 mx-auto max-w-6xl px-6 py-12">
@@ -63,13 +70,27 @@ function Index() {
         <div className="mb-4 flex items-center justify-between">
           <h2 className="font-mono text-xs uppercase tracking-[0.2em] text-muted-foreground">
             Jobs recentes
+            {!fullyOnline && (
+              <span className="ml-2 rounded-full border border-destructive/30 bg-destructive/10 px-2 py-0.5 text-[9px] text-destructive">
+                cache local
+              </span>
+            )}
           </h2>
-          <Link
-            to="/new"
-            className="font-mono text-xs uppercase tracking-widest text-primary hover:underline"
-          >
-            + novo
-          </Link>
+          {fullyOnline ? (
+            <Link
+              to="/new"
+              className="font-mono text-xs uppercase tracking-widest text-primary hover:underline"
+            >
+              + novo
+            </Link>
+          ) : (
+            <span
+              className="font-mono text-xs uppercase tracking-widest text-muted-foreground/50"
+              title="Disponível quando voltar online"
+            >
+              + novo (offline)
+            </span>
+          )}
         </div>
 
         {loading ? (

@@ -4,7 +4,7 @@ import { getToken, login } from "@/lib/auth";
 
 export const Route = createFileRoute("/login")({
   validateSearch: (search: Record<string, unknown>) => ({
-    redirect: typeof search.redirect === "string" ? search.redirect : "/",
+    redirect: typeof search.redirect === "string" ? search.redirect : "/app",
   }),
   head: () => ({
     meta: [{ title: "Entrar — Clipping4me" }],
@@ -22,7 +22,7 @@ function LoginPage() {
 
   // Já logado? Manda direto pro destino.
   useEffect(() => {
-    if (getToken()) navigate({ to: redirect || "/" });
+    if (getToken()) navigate({ to: redirect || "/app" });
   }, [navigate, redirect]);
 
   async function onSubmit(e: React.FormEvent) {
@@ -31,7 +31,7 @@ function LoginPage() {
     setSubmitting(true);
     try {
       await login(username.trim(), password);
-      navigate({ to: redirect || "/" });
+      navigate({ to: redirect || "/app" });
     } catch (err) {
       setError(err instanceof Error ? err.message : "Erro ao entrar");
     } finally {

@@ -13,6 +13,7 @@ import { useEffect, useState, type ReactNode } from "react";
 import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
 import { BackendStatus } from "../components/BackendStatus";
+import { OfflineBanner } from "../components/OfflineBanner";
 import { getUser, logout, subscribeAuth, type AuthUser } from "../lib/auth";
 
 function NotFoundComponent() {
@@ -140,6 +141,7 @@ function RootComponent() {
   return (
     <QueryClientProvider client={queryClient}>
       <div className="grain relative min-h-screen">
+        <OfflineBanner />
         <SiteHeader />
         {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
         <Outlet />
@@ -185,7 +187,7 @@ function SiteHeader() {
           {user && !isLoginPage ? (
             <>
               <Link
-                to="/"
+                to="/app"
                 className="rounded-md px-3 py-2 text-sm text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
                 activeOptions={{ exact: true }}
                 activeProps={{ className: "bg-secondary text-foreground" }}
