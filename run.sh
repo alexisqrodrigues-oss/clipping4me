@@ -35,6 +35,46 @@ print(quote(sys.argv[1], safe=''))
 PY
 }
 
+update_project() {
+  echo
+  log "Atualizando projeto via git..."
+  echo
+
+  # Atualiza o projeto principal
+  if [ -d "$SCRIPT_DIR/.git" ]; then
+    cd "$SCRIPT_DIR"
+    log "Buscando mudanças no projeto principal..."
+    git fetch origin
+    local local_branch
+    local_branch=$(git rev-parse --abbrev-ref HEAD)
+    git pull origin "$local_branch" || {
+      err "Falha ao atualizar projeto principal."
+      return 1
+    }
+    ok "Projeto principal atualizado."
+  else
+    warn "Repositório git não encontrado no projeto principal."
+  fi
+
+  # Atualiza o backend, se tiver repo próprio
+  if [ -d "$SCRIPT_DIR/backend/.git" ]; then
+    cd "$SCRIPT_DIR/backend"
+    log "Buscando mudanças no backend..."
+    git fetch origin
+    local backend_branch
+    backend_branch=$(git rev-parse --abbrev-ref HEAD)
+    git pull origin "$backend_branch" || {
+      err "Falha ao atualizar backend."
+      return 1
+    }
+    ok "Backend atualizado."
+  fi
+
+  echo
+  ok "Atualização concluída."
+  echo
+}
+
 ensure_ollama() {
   if ! command -v ollama >/dev/null 2>&1; then
     err "Ollama não está instalado. Instale com: brew install ollama"
@@ -130,20 +170,56 @@ open_frontend() {
   open "$final_url" >/dev/null 2>&1 || true
 }
 
-echo
-log "Iniciando Clipping4Me..."
-echo
+show_menu() {
+  echo
+  log "Escolha uma opção:"
+  echo
+  echo "  1) Iniciar Clipping4Me"
+  echo "  2) Atualizar projeto (git pull)"
+  echo "  3) Sair"
+  echo
+}
 
-ensure_ollama
-ensure_backend
-PUBLIC_BACKEND_URL="$(ensure_public_backend)"
-open_frontend "$PUBLIC_BACKEND_URL"
+run_app() {
+  ensure_ollama
+  ensure_backend
+  PUBLIC_BACKEND_URL="$(ensure_public_backend)"
+  open_frontend "$PUBLIC_BACKEND_URL"
 
-echo
-ok "Tudo pronto."
-log "Backend: $PUBLIC_BACKEND_URL"
-log "Logs backend: /tmp/clipping4me-backend.log"
-log "Logs Ollama: /tmp/clipping4me-ollama.log"
-echo
-read -n 1 -s -r -p "Pressione qualquer tecla para fechar..."
-echo
+  echo
+  ok "Tudo pronto."
+  log "Backend: $PUBLIC_BACKEND_URL"
+  log "Logs backend: /tmp/clipping4me-backend.log"
+  log "Logs Ollama: /tmp/clipping4me-ollama.log"
+  echo
+  read -n 1 -s -r -p "Pressione qualquer tecla para fechar..."
+  echo
+}
+
+# ============= MAIN =============
+
+show_menu
+read -r -p "Opção [1-3]: " choice
+
+case "$choice" in
+  1)
+    echo
+    log "Iniciando Clipping4Me..."
+    echo
+    run_app
+    ;;
+  2)
+    update_project
+    echo
+    read -n 1 -s -r -p "Pressione qualquer tecla para fechar..."
+    echo
+    ;;
+  3)
+    log "Saindo."
+    exit 0
+    ;;
+  *)
+    err "Opção inválida."
+    exit 1
+    ;;
+esac
