@@ -16,6 +16,9 @@ STATE_FILE = ROOT_DIR / "jobs.json"
 OLLAMA_URL = os.environ.get("OLLAMA_URL", "http://localhost:11434")
 OLLAMA_MODEL = os.environ.get("OLLAMA_MODEL", "qwen2.5-coder:7b")
 
+# Frontend autorizado por padrão
+FRONTEND_URL = os.environ.get("FRONTEND_URL", "https://clipping4.me")
+
 # Whisper
 WHISPER_MODEL = os.environ.get("WHISPER_MODEL", "small")  # tiny | base | small | medium | large
 
