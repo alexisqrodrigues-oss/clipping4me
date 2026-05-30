@@ -6,7 +6,6 @@ import {
   listJobs,
   STATUS_LABEL,
   type Job,
-  BACKEND_URL,
 } from "@/lib/backend";
 
 export const Route = createFileRoute("/")({
@@ -30,7 +29,6 @@ export const Route = createFileRoute("/")({
 
 function Index() {
   const [jobs, setJobs] = useState<Job[]>([]);
-  const [live, setLive] = useState(false);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -39,7 +37,6 @@ function Index() {
       const res = await listJobs();
       if (cancelled) return;
       setJobs(res.jobs);
-      setLive(res.live);
       setLoading(false);
     };
     refresh();
@@ -52,17 +49,14 @@ function Index() {
 
   return (
     <main className="relative z-10 mx-auto max-w-6xl px-6 py-12">
-      <div className="mb-10 flex items-end justify-between gap-6">
-        <div>
-          <h1 className="font-display text-5xl leading-none">
-            Estúdio de cortes.
-          </h1>
-          <p className="mt-3 max-w-xl text-sm text-muted-foreground">
-            Cole um link, faça upload de vídeo ou SRT — o agente identifica os
-            momentos com maior potencial e entrega cortes prontos para edição.
-          </p>
-        </div>
-        <BackendStatus live={live} />
+      <div className="mb-10">
+        <h1 className="font-display text-5xl leading-none">
+          Estúdio de cortes.
+        </h1>
+        <p className="mt-3 max-w-xl text-sm text-muted-foreground">
+          Cole um link ou faça upload de vídeo — o agente identifica os
+          momentos com maior potencial e entrega cortes prontos para edição.
+        </p>
       </div>
 
       <section>
@@ -91,21 +85,6 @@ function Index() {
         )}
       </section>
     </main>
-  );
-}
-
-function BackendStatus({ live }: { live: boolean }) {
-  return (
-    <div className="flex items-center gap-2 rounded-md border border-border bg-surface px-3 py-2 font-mono text-[11px]">
-      <span
-        className={`h-2 w-2 rounded-full ${live ? "bg-primary" : "bg-muted-foreground"}`}
-      />
-      <span className="text-muted-foreground">
-        {live ? "backend conectado" : "modo demo · backend offline"}
-      </span>
-      <span className="text-muted-foreground/60">·</span>
-      <span className="text-muted-foreground/80">{BACKEND_URL}</span>
-    </div>
   );
 }
 
