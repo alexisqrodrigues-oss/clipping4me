@@ -51,6 +51,19 @@ Responda APENAS com JSON válido (sem markdown, sem comentários), no formato:
 """
 
 
+async def health_check() -> None:
+    """Levanta RuntimeError se Ollama não estiver acessível."""
+    async with httpx.AsyncClient(timeout=10) as client:
+        try:
+            r = await client.get(f"{OLLAMA_URL}/api/tags")
+            r.raise_for_status()
+        except Exception as exc:
+            raise RuntimeError(
+                f"Ollama não está respondendo em {OLLAMA_URL}. "
+                f"Verifique se está rodando com 'ollama serve'. Erro: {exc}"
+            )
+
+
 async def pick_clips(
     segments: list[dict],
     instructions: str,

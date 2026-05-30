@@ -40,13 +40,17 @@ async def run_job(job: Job) -> None:
             await cutter.extract_audio(source_video, audio)
             srt_segments = await asyncio.to_thread(transcribe.transcribe, audio)
 
-        # 3) LLM escolhe os cortes
+        # 3) Verifica Ollama antes de chamar
+        update_job(job.id, status="analyzing", progress=50)
+        await llm.health_check()
+
+        # 4) LLM escolhe os cortes
         update_job(job.id, status="analyzing", progress=55)
         picks = await llm.pick_clips(srt_segments, job.instructions)
         if not picks:
-            raise RuntimeError("LLM não retornou cortes. Verifique se Ollama está rodando.")
+            raise RuntimeError("LLM não retornou cortes. Verifique se o modelo está disponível.")
 
-        # 4) Cortar com ffmpeg + gerar thumb
+        # 5) Cortar com ffmpeg + gerar thumb e sub-cortes
         update_job(job.id, status="cutting", progress=75)
         date_str = date.today().isoformat()
         podcast_folder = CORTES_DIR / f"{date_str} {_slug(job.podcast_title)}"
@@ -54,27 +58,49 @@ async def run_job(job: Job) -> None:
 
         clips: list[Clip] = []
         for i, pick in enumerate(picks, start=1):
-            clip_name = f"{i:02d} - {_slug(pick['title'])}"
+            clip_name = f"{i:02d} {_slug(pick['title'])}"
             clip_dir = podcast_folder / clip_name
-            render_dir = clip_dir / "01 Render final"
+
+            render_dir = clip_dir / "01 Render"
             seq_dir = clip_dir / "02 Sequencia de cortes"
-            mat_dir = clip_dir / "03 Materiais"
-            for d in (render_dir, seq_dir, mat_dir):
+            mat_dir = clip_dir / "03 Materiais arquivos de texto, audio, b-rolls, etc"
+            img_dir = mat_dir / "Imagens de apoio"
+            mus_dir = mat_dir / "Musica"
+
+            for d in (render_dir, seq_dir, mat_dir, img_dir, mus_dir):
                 d.mkdir(parents=True, exist_ok=True)
 
             start, end = float(pick["start"]), float(pick["end"])
-            out_video = render_dir / "render.mp4"
-            out_thumb = mat_dir / "thumb.jpg"
 
+            # Render final
+            out_video = render_dir / "video.mp4"
             await cutter.cut_clip(source_video, start, end, out_video, vertical=True)
+
+            # Thumb
+            out_thumb = img_dir / "thumb.jpg"
             await cutter.make_thumbnail(source_video, start + 1.0, out_thumb)
 
-            # materiais textuais
-            (mat_dir / "descricao.txt").write_text(pick.get("description", ""))
-            (mat_dir / "observacoes.txt").write_text(pick.get("observations", ""))
-            _write_srt(mat_dir / "legenda.srt", srt_segments, start, end)
-
+            # Sequencia de sub-cortes (hook, dev, close) + full
             segments_out = _slice_segments(srt_segments, start, end, pick)
+            seq_idx = 1
+            for seg in segments_out:
+                sub_out = seq_dir / f"{seq_idx:02d}_{seg.role}.mp4"
+                await cutter.cut_clip(source_video, seg.start, seg.end, sub_out, vertical=True)
+                seq_idx += 1
+
+            # Full também na sequencia
+            full_out = seq_dir / f"{seq_idx:02d}_full.mp4"
+            await cutter.cut_clip(source_video, start, end, full_out, vertical=True)
+
+            # Materiais textuais
+            (mat_dir / "descricao.txt").write_text(pick.get("description", ""), encoding="utf-8")
+            (mat_dir / "observacoes.txt").write_text(pick.get("observations", ""), encoding="utf-8")
+
+            # SRT com nome do vídeo
+            safe_title = _slug(pick["title"])
+            srt_path = mat_dir / f"{safe_title}.srt"
+            _write_srt(srt_path, srt_segments, start, end)
+
             clip_id = f"{job.id}_c{i:02d}"
             clips.append(
                 Clip(
@@ -86,7 +112,7 @@ async def run_job(job: Job) -> None:
                     music_suggestion=pick.get("music_suggestion"),
                     thumbnail_copy=pick.get("thumbnail_copy"),
                     thumbnail_url=f"/media/{job.id}/{clip_id}/thumb.jpg",
-                    video_url=f"/media/{job.id}/{clip_id}/render.mp4",
+                    video_url=f"/media/{job.id}/{clip_id}/video.mp4",
                     duration=end - start,
                     segments=segments_out,
                     folder_path=str(clip_dir),
@@ -181,7 +207,7 @@ def _link_media(job_id: str, clip_id: str, video: Path, thumb: Path) -> None:
     from .config import ROOT_DIR
     media_dir = ROOT_DIR / "media" / job_id / clip_id
     media_dir.mkdir(parents=True, exist_ok=True)
-    for src, name in [(video, "render.mp4"), (thumb, "thumb.jpg")]:
+    for src, name in [(video, "video.mp4"), (thumb, "thumb.jpg")]:
         dst = media_dir / name
         if dst.exists():
             dst.unlink()
