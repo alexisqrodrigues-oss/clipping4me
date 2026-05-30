@@ -143,7 +143,9 @@ function RootComponent() {
         <OfflineBanner />
         <SiteHeader />
         {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
-        <Outlet />
+        <main>
+          <Outlet />
+        </main>
       </div>
     </QueryClientProvider>
   );
