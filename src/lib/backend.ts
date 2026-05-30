@@ -355,7 +355,7 @@ export async function checkHealth(): Promise<boolean> {
     const res = await fetch(`${getBackendUrl()}/health`, {
       method: "GET",
       headers: { "ngrok-skip-browser-warning": "true" },
-      signal: AbortSignal.timeout(2000),
+      signal: AbortSignal.timeout(10000),
     });
     return res.ok;
   } catch {
