@@ -175,8 +175,10 @@ function PipelineSteps({ current }: { current: Job["status"] }) {
 }
 
 function ClipCard({ clip, jobId }: { clip: Clip; jobId: string }) {
+  const hue = (clip.index * 67) % 360;
   return (
     <article className="group flex flex-col rounded-lg border border-border bg-surface p-5 transition-colors hover:border-primary/50">
+      <ClipPlayer clip={clip} hue={hue} />
       <div className="flex items-start justify-between gap-3">
         <div className="font-mono text-[10px] uppercase tracking-widest text-muted-foreground">
           #{clip.index.toString().padStart(2, "0")} · {formatDuration(clip.duration)}
@@ -219,6 +221,70 @@ function ClipCard({ clip, jobId }: { clip: Clip; jobId: string }) {
         {clip.folder_path}
       </div>
     </article>
+  );
+}
+
+function ClipPlayer({ clip, hue }: { clip: Clip; hue: number }) {
+  const [playing, setPlaying] = useState(false);
+
+  if (clip.video_url) {
+    return (
+      <div className="mb-4 overflow-hidden rounded-md border border-border bg-black">
+        <video
+          src={clip.video_url}
+          poster={clip.thumbnail_url}
+          controls
+          className="aspect-[9/16] w-full object-cover"
+          preload="metadata"
+        />
+      </div>
+    );
+  }
+
+  return (
+    <button
+      type="button"
+      onClick={() => setPlaying((p) => !p)}
+      className="group/player relative mb-4 flex aspect-[9/16] w-full max-h-72 items-end justify-start overflow-hidden rounded-md border border-border"
+      style={{
+        background: clip.thumbnail_url
+          ? `url(${clip.thumbnail_url}) center/cover`
+          : `linear-gradient(135deg, oklch(0.35 0.18 ${hue}) 0%, oklch(0.20 0.10 ${(hue + 60) % 360}) 60%, oklch(0.15 0.05 ${(hue + 120) % 360}) 100%)`,
+      }}
+      aria-label={`Pré-visualizar ${clip.title}`}
+    >
+      <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent" />
+
+      <div className="absolute left-1/2 top-1/2 flex h-14 w-14 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-2xl transition-transform group-hover/player:scale-110">
+        {playing ? (
+          <span className="font-mono text-xs">●●●</span>
+        ) : (
+          <svg viewBox="0 0 24 24" className="ml-0.5 h-6 w-6 fill-current">
+            <path d="M8 5v14l11-7z" />
+          </svg>
+        )}
+      </div>
+
+      <div className="relative z-10 flex w-full items-end justify-between gap-2 p-3">
+        <div className="max-w-[70%] text-left">
+          <div className="font-mono text-[9px] uppercase tracking-widest text-white/60">
+            #{clip.index.toString().padStart(2, "0")}
+          </div>
+          <div className="font-display text-base leading-tight text-white drop-shadow">
+            {clip.title}
+          </div>
+        </div>
+        <span className="rounded bg-black/60 px-1.5 py-0.5 font-mono text-[10px] text-white backdrop-blur-sm">
+          {formatDuration(clip.duration)}
+        </span>
+      </div>
+
+      {playing && (
+        <div className="absolute inset-x-0 bottom-0 z-20 h-1 overflow-hidden bg-white/20">
+          <div className="h-full w-1/3 animate-pulse bg-primary" />
+        </div>
+      )}
+    </button>
   );
 }
 

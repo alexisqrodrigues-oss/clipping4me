@@ -32,6 +32,8 @@ export interface Clip {
   observations: string;
   music_suggestion?: string;
   thumbnail_copy?: string;
+  thumbnail_url?: string;
+  video_url?: string;
   duration: number;
   segments: ClipSegment[];
   folder_path: string;

@@ -9,7 +9,7 @@ export const Route = createFileRoute("/new")({
       {
         name: "description",
         content:
-          "Cole um link, faça upload de vídeo ou SRT e gere cortes automáticos.",
+          "Cole um link do YouTube ou faça upload de um vídeo e gere cortes automáticos.",
       },
       { property: "og:title", content: "Novo corte — Clipping4me" },
       {
@@ -21,29 +21,56 @@ export const Route = createFileRoute("/new")({
   component: NewJob,
 });
 
-const TABS: { key: IngestKind; label: string; hint: string }[] = [
-  { key: "youtube", label: "Link YouTube", hint: "yt-dlp baixa o vídeo + SRT" },
-  { key: "upload", label: "Upload vídeo", hint: "Whisper transcreve localmente" },
-  { key: "srt", label: "Upload SRT", hint: "Pula transcrição" },
+type Tab = Exclude<IngestKind, "srt">;
+const TABS: { key: Tab; label: string; hint: string }[] = [
+  { key: "youtube", label: "Link do YouTube", hint: "yt-dlp baixa o vídeo automaticamente" },
+  { key: "upload", label: "Upload de vídeo", hint: "Whisper transcreve localmente (ou anexe um .srt)" },
+];
+
+const INSTRUCTION_PRESETS = [
+  { label: "Polêmico", text: "Priorize trechos polêmicos, frases de impacto e opiniões fortes que gerem discussão." },
+  { label: "Técnico", text: "Foque em explicações técnicas claras, conceitos densos e insights práticos." },
+  { label: "Autoridade", text: "Selecione momentos em que o convidado demonstra autoridade, expertise e cases reais." },
+  { label: "Storytelling", text: "Priorize histórias pessoais com começo, meio e fim, ganchos emocionais e reviravoltas." },
+  { label: "Engraçado", text: "Foque em momentos engraçados, tiradas espontâneas e reações." },
+  { label: "Motivacional", text: "Selecione trechos inspiradores, frases de superação e ensinamentos de vida." },
 ];
 
 function NewJob() {
   const navigate = useNavigate();
-  const [kind, setKind] = useState<IngestKind>("youtube");
+  const [kind, setKind] = useState<Tab>("youtube");
   const [url, setUrl] = useState("");
-  const [file, setFile] = useState<File | null>(null);
+  const [videoFile, setVideoFile] = useState<File | null>(null);
+  const [srtFile, setSrtFile] = useState<File | null>(null);
   const [instructions, setInstructions] = useState("");
+  const [activePresets, setActivePresets] = useState<string[]>([]);
   const [submitting, setSubmitting] = useState(false);
 
   const canSubmit =
     (kind === "youtube" && url.trim().length > 5) ||
-    ((kind === "upload" || kind === "srt") && file !== null);
+    (kind === "upload" && videoFile !== null);
+
+  function togglePreset(label: string, text: string) {
+    const isActive = activePresets.includes(label);
+    if (isActive) {
+      setActivePresets((p) => p.filter((x) => x !== label));
+      setInstructions((i) => i.replace(text, "").replace(/\n{3,}/g, "\n\n").trim());
+    } else {
+      setActivePresets((p) => [...p, label]);
+      setInstructions((i) => (i.trim() ? `${i.trim()}\n\n${text}` : text));
+    }
+  }
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!canSubmit) return;
     setSubmitting(true);
-    const source = kind === "youtube" ? url.trim() : file!.name;
+    const source =
+      kind === "youtube"
+        ? url.trim()
+        : srtFile
+          ? `${videoFile!.name} + ${srtFile.name}`
+          : videoFile!.name;
     const { job } = await createJob({ kind, source, instructions });
     navigate({ to: "/jobs/$jobId", params: { jobId: job.id } });
   }
@@ -54,13 +81,13 @@ function NewJob() {
         <div className="font-mono text-xs uppercase tracking-[0.2em] text-muted-foreground">
           Nova ingestão
         </div>
-        <h1 className="mt-2 font-display text-5xl leading-none">
+        <h1 className="mt-2 font-display text-5xl leading-[1.05]">
           De onde vem o vídeo?
         </h1>
       </div>
 
       <form onSubmit={onSubmit} className="space-y-8">
-        <div className="grid grid-cols-3 gap-2 rounded-lg border border-border bg-surface p-1">
+        <div className="grid grid-cols-2 gap-2 rounded-lg border border-border bg-surface p-1">
           {TABS.map((t) => (
             <button
               key={t.key}
@@ -86,7 +113,7 @@ function NewJob() {
           ))}
         </div>
 
-        <div className="rounded-lg border border-border bg-surface p-6">
+        <div className="space-y-4 rounded-lg border border-border bg-surface p-6">
           {kind === "youtube" ? (
             <label className="block">
               <span className="font-mono text-[11px] uppercase tracking-widest text-muted-foreground">
@@ -102,29 +129,72 @@ function NewJob() {
               />
             </label>
           ) : (
-            <DropZone
-              kind={kind}
-              file={file}
-              onFile={setFile}
-              accept={
-                kind === "upload" ? "video/*,audio/*" : ".srt,application/x-subrip"
-              }
-            />
+            <>
+              <div>
+                <span className="font-mono text-[11px] uppercase tracking-widest text-muted-foreground">
+                  Vídeo ou áudio
+                </span>
+                <div className="mt-2">
+                  <DropZone
+                    label="Solte o vídeo aqui"
+                    file={videoFile}
+                    onFile={setVideoFile}
+                    accept="video/*,audio/*"
+                  />
+                </div>
+              </div>
+              <div>
+                <span className="font-mono text-[11px] uppercase tracking-widest text-muted-foreground">
+                  Legenda (.srt) <span className="opacity-50">— opcional, pula transcrição</span>
+                </span>
+                <div className="mt-2">
+                  <DropZone
+                    label="Solte o .srt do mesmo vídeo (opcional)"
+                    file={srtFile}
+                    onFile={setSrtFile}
+                    accept=".srt,application/x-subrip"
+                    compact
+                  />
+                </div>
+              </div>
+            </>
           )}
         </div>
 
-        <label className="block">
-          <span className="font-mono text-[11px] uppercase tracking-widest text-muted-foreground">
-            Instruções para o agente <span className="opacity-50">(opcional)</span>
-          </span>
+        <div>
+          <div className="flex items-center justify-between">
+            <span className="font-mono text-[11px] uppercase tracking-widest text-muted-foreground">
+              Instruções para o agente <span className="opacity-50">(opcional)</span>
+            </span>
+          </div>
+          <div className="mt-3 flex flex-wrap gap-2">
+            {INSTRUCTION_PRESETS.map((p) => {
+              const active = activePresets.includes(p.label);
+              return (
+                <button
+                  key={p.label}
+                  type="button"
+                  onClick={() => togglePreset(p.label, p.text)}
+                  className={`rounded-full border px-3 py-1.5 text-xs transition-colors ${
+                    active
+                      ? "border-primary bg-primary text-primary-foreground"
+                      : "border-border bg-surface text-muted-foreground hover:border-primary/50 hover:text-foreground"
+                  }`}
+                >
+                  {active ? "✓ " : "+ "}
+                  {p.label}
+                </button>
+              );
+            })}
+          </div>
           <textarea
             value={instructions}
             onChange={(e) => setInstructions(e.target.value)}
             rows={4}
-            placeholder="Ex.: foco em frases polêmicas, prioridade para storytelling pessoal, evitar temas técnicos."
-            className="mt-2 w-full resize-none rounded-md border border-input bg-surface px-4 py-3 text-sm outline-none focus:border-primary"
+            placeholder="Ou escreva instruções customizadas: evite temas religiosos, priorize convidado X, etc."
+            className="mt-3 w-full resize-none rounded-md border border-input bg-surface px-4 py-3 text-sm outline-none focus:border-primary"
           />
-        </label>
+        </div>
 
         <div className="flex items-center justify-between gap-4">
           <p className="font-mono text-[11px] text-muted-foreground">
@@ -144,15 +214,17 @@ function NewJob() {
 }
 
 function DropZone({
-  kind,
+  label,
   file,
   onFile,
   accept,
+  compact,
 }: {
-  kind: IngestKind;
+  label: string;
   file: File | null;
   onFile: (f: File | null) => void;
   accept: string;
+  compact?: boolean;
 }) {
   const [drag, setDrag] = useState(false);
   return (
@@ -168,7 +240,9 @@ function DropZone({
         const f = e.dataTransfer.files?.[0];
         if (f) onFile(f);
       }}
-      className={`flex cursor-pointer flex-col items-center justify-center rounded-md border-2 border-dashed px-6 py-12 text-center transition-colors ${
+      className={`flex cursor-pointer flex-col items-center justify-center rounded-md border-2 border-dashed text-center transition-colors ${
+        compact ? "px-4 py-6" : "px-6 py-12"
+      } ${
         drag
           ? "border-primary bg-primary/5"
           : "border-border bg-background hover:border-primary/50"
@@ -189,8 +263,8 @@ function DropZone({
         </>
       ) : (
         <>
-          <div className="font-display text-2xl text-muted-foreground">
-            {kind === "upload" ? "Solte o vídeo aqui" : "Solte o arquivo .srt aqui"}
+          <div className={`font-display text-muted-foreground ${compact ? "text-base" : "text-2xl"}`}>
+            {label}
           </div>
           <div className="mt-2 font-mono text-[11px] uppercase tracking-widest text-muted-foreground">
             ou clique para selecionar
