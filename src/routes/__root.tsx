@@ -179,7 +179,7 @@ function SiteHeader() {
           <div className="leading-tight">
             <div className="font-display text-xl">clipping4.me</div>
             <div className="font-mono text-[10px] uppercase tracking-widest text-muted-foreground">
-              local studio
+              estúdio de cortes
             </div>
           </div>
         </Link>

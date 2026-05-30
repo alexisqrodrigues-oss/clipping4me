@@ -334,39 +334,38 @@ run_app() {
 
 # ============= MAIN =============
 
-show_menu
-read -r -p "Opção [1-5]: " choice
-
-case "$choice" in
-  1)
-    echo
-    log "Iniciando Clipping4Me..."
-    echo
-    if run_app; then
-      ok "OK."
-    else
-      err "Inicialização falhou. Rode a opção 3 (Diagnóstico) para ver detalhes."
-    fi
-    pause_and_exit 0
-    ;;
-  2)
-    update_project || err "Falha ao atualizar."
-    pause_and_exit 0
-    ;;
-  3)
-    diagnose
-    pause_and_exit 0
-    ;;
-  4)
-    stop_all
-    pause_and_exit 0
-    ;;
-  5)
-    log "Saindo."
-    exit 0
-    ;;
-  *)
-    err "Opção inválida."
-    pause_and_exit 1
-    ;;
-esac
+while true; do
+  show_menu
+  read -r -p "Opção [1-5]: " choice
+  case "$choice" in
+    1)
+      echo
+      log "Iniciando Clipping4Me..."
+      echo
+      if run_app; then
+        ok "OK."
+      else
+        err "Inicialização falhou. Rode a opção 3 (Diagnóstico) para ver detalhes."
+      fi
+      ;;
+    2)
+      update_project || err "Falha ao atualizar."
+      ;;
+    3)
+      diagnose
+      ;;
+    4)
+      stop_all
+      ;;
+    5)
+      log "Saindo."
+      exit 0
+      ;;
+    *)
+      err "Opção inválida."
+      ;;
+  esac
+  echo
+  read -n 1 -s -r -p "Pressione qualquer tecla para voltar ao menu..."
+  echo
+done

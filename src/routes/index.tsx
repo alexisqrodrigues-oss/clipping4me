@@ -14,6 +14,7 @@ import {
   Wand2,
 } from "lucide-react";
 import { getToken } from "@/lib/auth";
+import { SiteFooter } from "@/components/SiteFooter";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -52,6 +53,7 @@ function Landing() {
       <AlgorithmAlignment />
       <Roadmap />
       <CTASection />
+      <SiteFooter />
     </main>
   );
 }
