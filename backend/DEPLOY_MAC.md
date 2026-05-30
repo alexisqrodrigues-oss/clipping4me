@@ -1,6 +1,6 @@
-# Deploy: Mac sempre ligado, acessível de qualquer lugar
+# Deploy: Mac sempre ligado com `clipping4.me` + `api.clipping4.me`
 
-Roteiro completo. Faça **uma vez** e está pronto.
+Roteiro completo. Eu já deixei os arquivos no repo; no Mac você só clona e roda os comandos.
 
 ---
 
@@ -50,33 +50,29 @@ Funcionou? **Ctrl+C** pra parar e siga pro passo 3 (auto-start).
 
 ---
 
-## 3. Acesso público com URL HTTPS estável (Tailscale Funnel)
+## 3. Acesso público com `api.clipping4.me` (Cloudflare Tunnel)
 
-Mais simples que ter domínio, gratuito (free tier: até 3 nós Funnel).
+Pré-requisito: seu domínio `clipping4.me` já precisa estar no Cloudflare.
 
 ```bash
-brew install --cask tailscale
-open -a Tailscale
-# Faça login com Google/GitHub na bandeja superior
-
-sudo tailscale up
-
-# Expõe localhost:8000 via HTTPS
-sudo tailscale serve --bg --https=443 http://localhost:8000
-sudo tailscale funnel --bg 443
-
-# Veja sua URL pública
-tailscale funnel status
-# https://<seu-mac>.tail<xxxxx>.ts.net  ← copie essa URL
+brew install cloudflared
+cloudflared tunnel login
+bash backend/install-cloudflare.sh
 ```
 
-Essa URL:
-- É **HTTPS** (browsers modernos exigem isso)
-- É **fixa** (mesma URL pra sempre)
-- **Sobrevive a restart** (Tailscale tem auto-start automático)
-- **Não exige abrir portas** no roteador
+Esse script:
+- cria o tunnel `clipping4me-api`
+- cria/configura o DNS `api.clipping4.me`
+- gera `~/.cloudflared/config.yml`
+- instala o serviço para auto-start
 
-Na UI (no celular, laptop, qualquer lugar): clica no chip `● online` no header → cola essa URL → salvar.
+URL final esperada:
+
+```bash
+https://api.clipping4.me
+```
+
+Na UI publicada em `https://clipping4.me`, o padrão já fica apontando pra essa URL.
 
 ---
 
@@ -113,32 +109,20 @@ launchctl load -w ~/Library/LaunchAgents/me.clipping4.backend.plist
 
 ## 5. Daqui pra frente
 
-- Reiniciou o Mac? Backend sobe sozinho via LaunchAgent. Tailscale sobe sozinho. Tudo só funciona.
+- Reiniciou o Mac? Backend sobe sozinho via LaunchAgent. Cloudflare Tunnel sobe sozinho. Tudo só funciona.
 - Esqueceu a senha do admin? Pare o backend (`launchctl unload …`), delete `~/Clipping4me/users.json`, suba de novo com `ADMIN_BOOTSTRAP_PASSWORD=…`. Vai recriar o admin.
 - Quer dar acesso pra alguém? Login como admin → `/admin` → cria usuário com role `user`.
 - Quer revogar acesso? `/admin` → deletar usuário (mata também todas as sessões dele).
 
 ---
 
-## Alternativa: Cloudflare Tunnel (se você tem um domínio)
-
-Se você já tem um domínio (próprio ou comprado no Cloudflare):
+## Resumo dos comandos
 
 ```bash
-brew install cloudflared
-cloudflared tunnel login              # autoriza no Cloudflare
-cloudflared tunnel create clipping4me
-cloudflared tunnel route dns clipping4me clipping.seudominio.com
-
-# config em ~/.cloudflared/config.yml:
-# tunnel: clipping4me
-# credentials-file: /Users/SEU_USUARIO/.cloudflared/<UUID>.json
-# ingress:
-#   - hostname: clipping.seudominio.com
-#     service: http://localhost:8000
-#   - service: http_status:404
-
-sudo cloudflared service install      # auto-start no boot
+brew install python@3.11 ffmpeg yt-dlp ollama cloudflared
+cd ~/SEU-CAMINHO/clipping4me
+cloudflared tunnel login
+bash backend/install-cloudflare.sh
+ADMIN_BOOTSTRAP_PASSWORD='SuaSenhaForte123' bash run.sh
+bash backend/install-launchagent.sh
 ```
-
-URL final: `https://clipping.seudominio.com` — fixa e bonita.
