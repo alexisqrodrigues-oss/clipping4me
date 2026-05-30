@@ -16,7 +16,7 @@ Depois suba o Ollama e baixe um modelo:
 
 ```bash
 brew services start ollama
-ollama pull llama3.1:8b      # ~5GB. Pode trocar por qwen2.5:7b, mistral, etc.
+ollama pull qwen2.5-coder:7b # pode trocar depois se quiser
 ```
 
 ## 2. Subir o backend
