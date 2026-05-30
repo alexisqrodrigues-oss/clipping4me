@@ -77,7 +77,8 @@ export const BACKEND_URL = DEFAULT_BACKEND_URL;
 
 async function tryFetch<T>(path: string, init?: RequestInit): Promise<T | null> {
   try {
-    const res = await fetch(`${getBackendUrl()}${path}`, {
+    const { authFetch } = await import("./auth");
+    const res = await authFetch(`${getBackendUrl()}${path}`, {
       ...init,
       headers: { "Content-Type": "application/json", ...(init?.headers ?? {}) },
     });
@@ -209,7 +210,8 @@ export async function createJob(
       if (input.podcast_title) fd.append("podcast_title", input.podcast_title);
       fd.append("video", input.videoFile);
       if (input.srtFile) fd.append("srt", input.srtFile);
-      const res = await fetch(`${getBackendUrl()}/jobs/upload`, {
+      const { authFetch } = await import("./auth");
+      const res = await authFetch(`${getBackendUrl()}/jobs/upload`, {
         method: "POST",
         body: fd,
       });
