@@ -5,7 +5,6 @@ Toda rota (exceto /health e /auth/login) exige Authorization: Bearer <token>.
 from __future__ import annotations
 
 import asyncio
-import re
 import shutil
 import subprocess
 import uuid
