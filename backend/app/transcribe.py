@@ -153,7 +153,7 @@ def parse_srt(srt_path: Path) -> List[Segment]:
         except ValueError:
             continue
         text = " ".join(lines[2:]) if "-->" in lines[1] else " ".join(lines[1:])
-        segments.append({"start": start_s, "end": end_s, "text": text.strip()})
+        segments.append({"start": start_s, "end": end_s, "text": text.strip(), "speaker": None})
     return segments
 
 
