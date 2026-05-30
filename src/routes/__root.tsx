@@ -85,13 +85,19 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
           "Estúdio local para gerar cortes virais de podcasts e palestras com IA.",
       },
       { name: "author", content: "Clipping4me" },
-      { property: "og:title", content: "Clipping4me" },
+      { property: "og:title", content: "Clipping4me — cortes automáticos de podcasts" },
       {
         property: "og:description",
         content: "Cortes automáticos inteligentes para podcasts e palestras.",
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
+      { name: "twitter:title", content: "Clipping4me — cortes automáticos de podcasts" },
+      { name: "description", content: "Clipping4me automatically generates short, engaging video clips from long-form content for social media." },
+      { property: "og:description", content: "Clipping4me automatically generates short, engaging video clips from long-form content for social media." },
+      { name: "twitter:description", content: "Clipping4me automatically generates short, engaging video clips from long-form content for social media." },
+      { property: "og:image", content: "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/a5804d1d-995f-4599-90c9-1a5b43488d82/id-preview-e15c99a8--94bcbc1b-cafe-4093-ae2c-b0475ca0b511.lovable.app-1780159704299.png" },
+      { name: "twitter:image", content: "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/a5804d1d-995f-4599-90c9-1a5b43488d82/id-preview-e15c99a8--94bcbc1b-cafe-4093-ae2c-b0475ca0b511.lovable.app-1780159704299.png" },
     ],
     links: [
       {
