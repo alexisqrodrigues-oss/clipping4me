@@ -11,6 +11,7 @@ import { useEffect, type ReactNode } from "react";
 
 import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
+import { BackendStatus } from "../components/BackendStatus";
 
 function NotFoundComponent() {
   return (
@@ -157,6 +158,7 @@ function SiteHeader() {
           </div>
         </Link>
         <nav className="flex items-center gap-2">
+          <BackendStatus />
           <Link
             to="/"
             className="rounded-md px-3 py-2 text-sm text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
