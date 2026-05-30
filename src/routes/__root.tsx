@@ -13,6 +13,7 @@ import { useEffect, useState, type ReactNode } from "react";
 import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
 import { BackendStatus } from "../components/BackendStatus";
+import { OfflineBanner } from "../components/OfflineBanner";
 import { getUser, logout, subscribeAuth, type AuthUser } from "../lib/auth";
 
 function NotFoundComponent() {
@@ -140,6 +141,7 @@ function RootComponent() {
   return (
     <QueryClientProvider client={queryClient}>
       <div className="grain relative min-h-screen">
+        <OfflineBanner />
         <SiteHeader />
         {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
         <Outlet />
