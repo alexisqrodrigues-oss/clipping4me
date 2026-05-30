@@ -5,6 +5,7 @@ import {
   formatRelative,
   getJob,
   openFolder,
+  downloadClipUrl,
   STATUS_LABEL,
   type Clip,
   type Job,
@@ -208,16 +209,40 @@ function ClipCard({
         <div className="font-mono text-[10px] uppercase tracking-widest text-muted-foreground">
           #{clip.index.toString().padStart(2, "0")} · {formatDuration(clip.duration)}
         </div>
-        <button
-          onClick={() => openFolder(jobId, clip.id)}
-          className="font-mono text-[10px] uppercase tracking-widest text-primary opacity-0 transition-opacity group-hover:opacity-100"
-          title="Abrir pasta no Finder"
-        >
-          abrir ↗
-        </button>
+        <div className="flex items-center gap-3 opacity-0 transition-opacity group-hover:opacity-100">
+          <a
+            href={downloadClipUrl(jobId, clip.id)}
+            download
+            className="font-mono text-[10px] uppercase tracking-widest text-primary hover:underline"
+            title="Baixar MP4 9:16"
+          >
+            ↓ mp4
+          </a>
+          <button
+            onClick={() => openFolder(jobId, clip.id)}
+            className="font-mono text-[10px] uppercase tracking-widest text-primary"
+            title="Abrir pasta no Finder"
+          >
+            abrir ↗
+          </button>
+        </div>
       </div>
       <h3 className="mt-2 font-display text-2xl leading-tight">{clip.title}</h3>
       <p className="mt-2 text-sm text-muted-foreground">{clip.description}</p>
+
+      {clip.speakers && clip.speakers.length > 0 && (
+        <div className="mt-3 flex flex-wrap gap-1.5">
+          {clip.speakers.map((sp) => (
+            <span
+              key={sp}
+              className="rounded-full border border-border bg-surface-2 px-2 py-0.5 font-mono text-[10px] uppercase tracking-widest text-muted-foreground"
+              title="Voz detectada (WhisperX)"
+            >
+              🎙 {sp.replace("SPEAKER_", "voz ")}
+            </span>
+          ))}
+        </div>
+      )}
 
       <div className="mt-4 flex flex-wrap gap-1.5">
         {clip.segments.map((s, i) => (
