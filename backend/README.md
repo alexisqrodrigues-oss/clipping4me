@@ -2,6 +2,9 @@
 
 Roda 100% no seu Mac. A UI (este projeto Lovable) fala com este backend em `http://localhost:8000`.
 
+> **Quer deixar o Mac sempre ligado e acessível de qualquer lugar com login?**
+> Veja **[DEPLOY_MAC.md](./DEPLOY_MAC.md)** — passo a passo de Tailscale Funnel + LaunchAgent.
+
 ## 1. Instalar dependências de sistema (uma vez)
 
 ```bash
@@ -20,10 +23,12 @@ ollama pull llama3.1:8b      # ~5GB. Pode trocar por qwen2.5:7b, mistral, etc.
 
 ```bash
 cd backend
-bash run.sh
+ADMIN_BOOTSTRAP_PASSWORD='SuaSenhaForte' bash run.sh
 ```
 
-Na primeira execução vai criar `.venv` e instalar tudo (Whisper baixa ~500MB do modelo na primeira transcrição).
+Na primeira execução vai criar `.venv`, instalar tudo e criar um usuário admin (`axis`) com a senha que você passar em `ADMIN_BOOTSTRAP_PASSWORD`. Whisper baixa ~500MB do modelo na primeira transcrição.
+
+Sem `ADMIN_BOOTSTRAP_PASSWORD`, uma senha aleatória é gerada e impressa **uma vez** no log — anote.
 
 Saída esperada:
 ```
@@ -38,7 +43,10 @@ curl http://localhost:8000/health
 
 ## 3. Conectar a UI
 
-No projeto Lovable a UI lê `VITE_BACKEND_URL`. O default já é `http://localhost:8000`, então **não precisa configurar nada** — basta abrir a UI com o backend rodando. O indicador "modo demo / backend conectado" no canto superior direito da home avisa quando ela conecta.
+1. Abra a UI. Vai aparecer a tela de login.
+2. Entre com `axis` + sua senha.
+3. Pra trocar a URL do backend, clica no chip `● online/offline` no header → cola a URL → salvar.
+4. Pra criar mais usuários: menu **Admin** (só visível pra admins).
 
 ## Estrutura de arquivos gerados
 
