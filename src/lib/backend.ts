@@ -267,8 +267,15 @@ function withAbsoluteUrls(job: Job): Job {
 
 function absolutize(path?: string): string | undefined {
   if (!path) return path;
-  if (path.startsWith("http")) return path;
-  return `${getBackendUrl()}${path}`;
+  const full = path.startsWith("http") ? path : `${getBackendUrl()}${path}`;
+  // anexa ?token=… porque <video src> / <img src> não passam por authFetch
+  const token =
+    typeof window === "undefined"
+      ? null
+      : window.localStorage.getItem("clipping4me:token");
+  if (!token) return full;
+  const sep = full.includes("?") ? "&" : "?";
+  return `${full}${sep}token=${encodeURIComponent(token)}`;
 }
 
 export async function openFolder(jobId: string, clipId?: string): Promise<boolean> {
