@@ -1,9 +1,8 @@
 /**
- * Backend client for the Clipping4me Python service.
+ * Cliente HTTP do backend.
  *
- * Configure with VITE_BACKEND_URL (default: https://api.clipping4.me).
- * When the backend is offline, the app falls back to mock data so the UI
- * is fully usable for design/demo before the Python service exists.
+ * Sem mocks. Se o servidor não responde, retornamos um erro tipado e a UI
+ * mostra a causa real (offline, 401, 5xx, etc) — nunca dados falsos.
  */
 
 export type JobStatus =
@@ -57,6 +56,25 @@ export interface Job {
   error?: string;
 }
 
+export type ApiErrorKind =
+  | "offline"
+  | "unauthorized"
+  | "forbidden"
+  | "not_found"
+  | "server"
+  | "unknown";
+
+export interface ApiError {
+  kind: ApiErrorKind;
+  status: number; // 0 quando não houve resposta HTTP
+  message: string;
+  url: string;
+}
+
+export type ApiResult<T> =
+  | { ok: true; data: T }
+  | { ok: false; error: ApiError };
+
 const BACKEND_URL_KEY = "clipping4me:backend-url";
 const DEFAULT_BACKEND_URL =
   (import.meta.env.VITE_BACKEND_URL as string | undefined) ??
@@ -106,123 +124,96 @@ export function setBackendUrl(_url: string): void {
 /** @deprecated use getBackendUrl() */
 export const BACKEND_URL = DEFAULT_BACKEND_URL;
 
-async function tryFetch<T>(path: string, init?: RequestInit): Promise<T | null> {
+function classifyStatus(status: number): ApiErrorKind {
+  if (status === 401) return "unauthorized";
+  if (status === 403) return "forbidden";
+  if (status === 404) return "not_found";
+  if (status >= 500) return "server";
+  return "unknown";
+}
+
+function describeError(error: ApiError): string {
+  switch (error.kind) {
+    case "offline":
+      return `Não foi possível falar com o servidor (${getBackendUrl()}). Verifique se o serviço está no ar.`;
+    case "unauthorized":
+      return "Sua sessão expirou. Faça login novamente.";
+    case "forbidden":
+      return "Você não tem permissão para essa ação.";
+    case "not_found":
+      return "Recurso não encontrado.";
+    case "server":
+      return `O servidor retornou erro ${error.status}. Tente novamente em alguns segundos.`;
+    default:
+      return error.message || `Erro ${error.status}`;
+  }
+}
+
+export function getErrorMessage(error: ApiError): string {
+  return describeError(error);
+}
+
+const DEFAULT_TIMEOUT_MS = 15_000;
+
+async function apiCall<T>(
+  path: string,
+  init?: RequestInit & { timeoutMs?: number },
+): Promise<ApiResult<T>> {
+  const url = `${getBackendUrl()}${path}`;
+  const controller = new AbortController();
+  const timeout = setTimeout(
+    () => controller.abort(),
+    init?.timeoutMs ?? DEFAULT_TIMEOUT_MS,
+  );
   try {
     const { authFetch } = await import("./auth");
-    const res = await authFetch(`${getBackendUrl()}${path}`, {
+    const isFormData =
+      typeof FormData !== "undefined" && init?.body instanceof FormData;
+    const baseHeaders: Record<string, string> = {
+      "ngrok-skip-browser-warning": "true",
+    };
+    if (!isFormData) baseHeaders["Content-Type"] = "application/json";
+    const res = await authFetch(url, {
       ...init,
-      headers: {
-        "Content-Type": "application/json",
-        "ngrok-skip-browser-warning": "true",
-        ...(init?.headers ?? {}),
-      },
+      signal: controller.signal,
+      headers: { ...baseHeaders, ...(init?.headers ?? {}) },
     });
-    if (!res.ok) return null;
-    return (await res.json()) as T;
-  } catch {
-    return null;
+    if (!res.ok) {
+      const kind = classifyStatus(res.status);
+      let message = `${res.status} ${res.statusText}`;
+      try {
+        const text = await res.text();
+        if (text) message = text.slice(0, 500);
+      } catch {
+        /* ignore */
+      }
+      return { ok: false, error: { kind, status: res.status, message, url } };
+    }
+    const data = (await res.json()) as T;
+    return { ok: true, data };
+  } catch (e) {
+    const message = e instanceof Error ? e.message : String(e);
+    return {
+      ok: false,
+      error: { kind: "offline", status: 0, message, url },
+    };
+  } finally {
+    clearTimeout(timeout);
   }
-}
-
-/* ---------- mock store (used while backend offline) ---------- */
-
-const MOCK_KEY = "clipping4me:mock-jobs";
-
-function seedMock(): Job[] {
-  return [
-    {
-      id: "job_demo_1",
-      kind: "youtube",
-      source: "https://www.youtube.com/watch?v=demo",
-      podcast_title: "Flow Podcast #420 — Convidado Exemplo",
-      instructions: "Foco em momentos polêmicos e frases de impacto.",
-      status: "done",
-      progress: 100,
-      created_at: new Date(Date.now() - 1000 * 60 * 32).toISOString(),
-      clips: [
-        {
-          id: "c1",
-          index: 1,
-          title: "O erro que todo iniciante comete",
-          description: "Reflexão direta sobre o ponto cego mais comum no mercado.",
-          observations:
-            "Sugiro trilha lo-fi com kick marcado. Thumb: rosto + texto 'NÃO FAÇA ISSO'.",
-          music_suggestion: "lo-fi tense, 90 bpm",
-          thumbnail_copy: "NÃO FAÇA ISSO",
-          duration: 48,
-          folder_path:
-            "~/Clipping4me/Cortes/2026-05-30 Flow Podcast/01 - O erro que todo iniciante comete",
-          segments: [
-            { role: "hook", start: 1234, end: 1241, text: "Esse é o erro número um..." },
-            { role: "dev", start: 1320, end: 1348, text: "Quando você começa..." },
-            { role: "close", start: 1410, end: 1425, text: "Por isso é tão importante..." },
-          ],
-        },
-        {
-          id: "c2",
-          index: 2,
-          title: "A história que mudou minha carreira",
-          description: "Storytelling pessoal com gancho emocional forte.",
-          observations: "Música cinematográfica crescente. B-roll de cidade noturna.",
-          music_suggestion: "cinematic build-up",
-          thumbnail_copy: "ELE MUDOU TUDO",
-          duration: 55,
-          folder_path:
-            "~/Clipping4me/Cortes/2026-05-30 Flow Podcast/02 - A história que mudou minha carreira",
-          segments: [
-            { role: "hook", start: 2210, end: 2218, text: "Era 2018 e eu tinha..." },
-            { role: "dev", start: 2240, end: 2275, text: "Aí esse cara me chamou..." },
-            { role: "close", start: 2300, end: 2312, text: "Hoje eu entendo que..." },
-          ],
-        },
-      ],
-    },
-    {
-      id: "job_demo_2",
-      kind: "upload",
-      source: "palestra-design-2024.mp4",
-      podcast_title: "Palestra Design 2024",
-      instructions: "",
-      status: "analyzing",
-      progress: 62,
-      created_at: new Date(Date.now() - 1000 * 60 * 4).toISOString(),
-    },
-  ];
-}
-
-function readMock(): Job[] {
-  if (typeof window === "undefined") return seedMock();
-  const raw = window.localStorage.getItem(MOCK_KEY);
-  if (!raw) {
-    const seeded = seedMock();
-    window.localStorage.setItem(MOCK_KEY, JSON.stringify(seeded));
-    return seeded;
-  }
-  try {
-    return JSON.parse(raw) as Job[];
-  } catch {
-    return seedMock();
-  }
-}
-
-function writeMock(jobs: Job[]) {
-  if (typeof window === "undefined") return;
-  window.localStorage.setItem(MOCK_KEY, JSON.stringify(jobs));
 }
 
 /* ---------- public API ---------- */
 
-export async function listJobs(): Promise<{ jobs: Job[]; live: boolean }> {
-  const live = await tryFetch<{ jobs: Job[] }>("/jobs");
-  if (live) return { jobs: live.jobs.map(withAbsoluteUrls), live: true };
-  return { jobs: readMock(), live: false };
+export async function listJobs(): Promise<ApiResult<{ jobs: Job[] }>> {
+  const res = await apiCall<{ jobs: Job[] }>("/jobs");
+  if (!res.ok) return res;
+  return { ok: true, data: { jobs: res.data.jobs.map(withAbsoluteUrls) } };
 }
 
-export async function getJob(id: string): Promise<{ job: Job | null; live: boolean }> {
-  const live = await tryFetch<{ job: Job }>(`/jobs/${id}`);
-  if (live) return { job: withAbsoluteUrls(live.job), live: true };
-  const job = readMock().find((j) => j.id === id) ?? null;
-  return { job, live: false };
+export async function getJob(id: string): Promise<ApiResult<{ job: Job }>> {
+  const res = await apiCall<{ job: Job }>(`/jobs/${id}`);
+  if (!res.ok) return res;
+  return { ok: true, data: { job: withAbsoluteUrls(res.data.job) } };
 }
 
 export interface CreateJobInput {
@@ -236,56 +227,42 @@ export interface CreateJobInput {
 
 export async function createJob(
   input: CreateJobInput,
-): Promise<{ job: Job; live: boolean }> {
+): Promise<ApiResult<{ job: Job }>> {
   if (input.kind === "upload" && input.videoFile) {
-    try {
-      const fd = new FormData();
-      fd.append("kind", "upload");
-      fd.append("instructions", input.instructions);
-      if (input.podcast_title) fd.append("podcast_title", input.podcast_title);
-      fd.append("video", input.videoFile);
-      if (input.srtFile) fd.append("srt", input.srtFile);
-      const { authFetch } = await import("./auth");
-      const res = await authFetch(`${getBackendUrl()}/jobs/upload`, {
-        method: "POST",
-        body: fd,
-      });
-      if (res.ok) {
-        const data = (await res.json()) as { job: Job };
-        return { job: withAbsoluteUrls(data.job), live: true };
-      }
-    } catch {
-      /* falls through to mock */
-    }
-  } else {
-    const live = await tryFetch<{ job: Job }>("/jobs", {
+    const fd = new FormData();
+    fd.append("kind", "upload");
+    fd.append("instructions", input.instructions);
+    if (input.podcast_title) fd.append("podcast_title", input.podcast_title);
+    fd.append("video", input.videoFile);
+    if (input.srtFile) fd.append("srt", input.srtFile);
+    const res = await apiCall<{ job: Job }>("/jobs/upload", {
       method: "POST",
-      body: JSON.stringify({
-        kind: input.kind,
-        source: input.source,
-        instructions: input.instructions,
-        podcast_title: input.podcast_title,
-      }),
+      body: fd,
+      timeoutMs: 10 * 60_000, // uploads grandes
     });
-    if (live) return { job: withAbsoluteUrls(live.job), live: true };
+    if (!res.ok) return res;
+    return { ok: true, data: { job: withAbsoluteUrls(res.data.job) } };
   }
 
-  // Mock: create + simulate progression.
-  const id = `job_${Math.random().toString(36).slice(2, 8)}`;
-  const job: Job = {
-    id,
-    kind: input.kind,
-    source: input.source,
-    podcast_title: input.podcast_title || guessTitle(input),
-    instructions: input.instructions,
-    status: "queued",
-    progress: 0,
-    created_at: new Date().toISOString(),
-  };
-  const jobs = [job, ...readMock()];
-  writeMock(jobs);
-  simulateMockProgress(id);
-  return { job, live: false };
+  const res = await apiCall<{ job: Job }>("/jobs", {
+    method: "POST",
+    body: JSON.stringify({
+      kind: input.kind,
+      source: input.source,
+      instructions: input.instructions,
+      podcast_title: input.podcast_title,
+    }),
+  });
+  if (!res.ok) return res;
+  return { ok: true, data: { job: withAbsoluteUrls(res.data.job) } };
+}
+
+export async function deleteJob(id: string): Promise<ApiResult<{ ok: true }>> {
+  return apiCall<{ ok: true }>(`/jobs/${id}`, { method: "DELETE" });
+}
+
+export async function retryJob(id: string): Promise<ApiResult<{ job: Job }>> {
+  return apiCall<{ job: Job }>(`/jobs/${id}/retry`, { method: "POST" });
 }
 
 function withAbsoluteUrls(job: Job): Job {
@@ -314,11 +291,11 @@ function absolutize(path?: string): string | undefined {
 }
 
 export async function openFolder(jobId: string, clipId?: string): Promise<boolean> {
-  const live = await tryFetch<{ ok: boolean }>(`/jobs/${jobId}/open`, {
+  const res = await apiCall<{ ok: boolean }>(`/jobs/${jobId}/open`, {
     method: "POST",
     body: JSON.stringify({ clipId }),
   });
-  return !!live?.ok;
+  return res.ok && !!res.data.ok;
 }
 
 /* ---------- copy editor (Ollama) ---------- */
@@ -333,8 +310,8 @@ export interface CopyChatPayload {
 }
 
 export async function listModels(): Promise<string[]> {
-  const res = await tryFetch<{ models: string[] }>("/models");
-  return res?.models ?? [];
+  const res = await apiCall<{ models: string[] }>("/models");
+  return res.ok ? res.data.models : [];
 }
 
 export async function regenerateCopyAll(
@@ -342,11 +319,11 @@ export async function regenerateCopyAll(
   clipId: string,
   payload: CopyChatPayload = {},
 ): Promise<Clip | null> {
-  const res = await tryFetch<{ clip: Clip }>(
+  const res = await apiCall<{ clip: Clip }>(
     `/jobs/${jobId}/clips/${clipId}/copy`,
     { method: "POST", body: JSON.stringify(payload) },
   );
-  return res?.clip ?? null;
+  return res.ok ? res.data.clip : null;
 }
 
 export async function regenerateCopyField(
@@ -355,11 +332,11 @@ export async function regenerateCopyField(
   field: CopyField,
   payload: CopyChatPayload,
 ): Promise<{ clip: Clip; value: unknown } | null> {
-  const res = await tryFetch<{ clip: Clip; value: unknown; field: string }>(
+  const res = await apiCall<{ clip: Clip; value: unknown; field: string }>(
     `/jobs/${jobId}/clips/${clipId}/copy/${field}`,
     { method: "POST", body: JSON.stringify(payload) },
   );
-  return res ? { clip: res.clip, value: res.value } : null;
+  return res.ok ? { clip: res.data.clip, value: res.data.value } : null;
 }
 
 export async function saveCopy(
@@ -367,11 +344,11 @@ export async function saveCopy(
   clipId: string,
   patch: Partial<Pick<Clip, "caption" | "description" | "hashtags" | "cta">>,
 ): Promise<Clip | null> {
-  const res = await tryFetch<{ clip: Clip }>(
+  const res = await apiCall<{ clip: Clip }>(
     `/jobs/${jobId}/clips/${clipId}/copy`,
     { method: "PATCH", body: JSON.stringify(patch) },
   );
-  return res?.clip ?? null;
+  return res.ok ? res.data.clip : null;
 }
 
 /** URL absoluta autenticada (com ?token=) pra download direto via <a href>. */
@@ -382,40 +359,6 @@ export function downloadClipUrl(jobId: string, clipId: string): string {
       ? null
       : window.localStorage.getItem("clipping4me:token");
   return token ? `${base}?token=${encodeURIComponent(token)}` : base;
-}
-
-function guessTitle(input: CreateJobInput): string {
-  if (input.kind === "youtube") return "Vídeo do YouTube";
-  return input.source.replace(/\.[^.]+$/, "");
-}
-
-function simulateMockProgress(id: string) {
-  const stages: { status: JobStatus; ms: number; progress: number }[] = [
-    { status: "downloading", ms: 1500, progress: 20 },
-    { status: "transcribing", ms: 2500, progress: 45 },
-    { status: "analyzing", ms: 2500, progress: 70 },
-    { status: "cutting", ms: 2000, progress: 90 },
-    { status: "done", ms: 1500, progress: 100 },
-  ];
-  let acc = 0;
-  for (const stage of stages) {
-    acc += stage.ms;
-    setTimeout(() => {
-      const jobs = readMock();
-      const j = jobs.find((x) => x.id === id);
-      if (!j) return;
-      j.status = stage.status;
-      j.progress = stage.progress;
-      if (stage.status === "done") {
-        j.clips = seedMock()[0].clips!.map((c, i) => ({
-          ...c,
-          id: `${id}_c${i}`,
-          folder_path: c.folder_path.replace("Flow Podcast", j.podcast_title),
-        }));
-      }
-      writeMock(jobs);
-    }, acc);
-  }
 }
 
 export const STATUS_LABEL: Record<JobStatus, string> = {

@@ -1,6 +1,11 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
-import { createJob, type IngestKind } from "@/lib/backend";
+import {
+  createJob,
+  getErrorMessage,
+  type ApiError,
+  type IngestKind,
+} from "@/lib/backend";
 
 export const Route = createFileRoute("/_authenticated/new")({
   head: () => ({
@@ -45,6 +50,7 @@ function NewJob() {
   const [instructions, setInstructions] = useState("");
   const [activePresets, setActivePresets] = useState<string[]>([]);
   const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState<ApiError | null>(null);
 
   const canSubmit =
     (kind === "youtube" && url.trim().length > 5) ||
@@ -65,20 +71,26 @@ function NewJob() {
     e.preventDefault();
     if (!canSubmit) return;
     setSubmitting(true);
+    setError(null);
     const source =
       kind === "youtube"
         ? url.trim()
         : srtFile
           ? `${videoFile!.name} + ${srtFile.name}`
           : videoFile!.name;
-    const { job } = await createJob({
+    const res = await createJob({
       kind,
       source,
       instructions,
       videoFile: kind === "upload" ? videoFile : null,
       srtFile: kind === "upload" ? srtFile : null,
     });
-    navigate({ to: "/jobs/$jobId", params: { jobId: job.id } });
+    setSubmitting(false);
+    if (!res.ok) {
+      setError(res.error);
+      return;
+    }
+    navigate({ to: "/jobs/$jobId", params: { jobId: res.data.job.id } });
   }
 
   return (
@@ -204,7 +216,7 @@ function NewJob() {
 
         <div className="flex items-center justify-between gap-4">
           <p className="font-mono text-[11px] text-muted-foreground">
-            Tudo processado localmente no seu Mac.
+            Processamento em nuvem com IA dedicada.
           </p>
           <button
             type="submit"
@@ -214,6 +226,14 @@ function NewJob() {
             {submitting ? "Criando job…" : "Iniciar processamento"}
           </button>
         </div>
+        {error && (
+          <div className="rounded-md border border-destructive/30 bg-destructive/10 p-4 text-sm">
+            <div className="font-mono text-[11px] uppercase tracking-widest text-destructive">
+              {error.kind} · {error.status}
+            </div>
+            <p className="mt-1 text-foreground">{getErrorMessage(error)}</p>
+          </div>
+        )}
       </form>
     </main>
   );

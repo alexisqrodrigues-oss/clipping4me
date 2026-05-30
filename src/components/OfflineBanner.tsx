@@ -1,5 +1,6 @@
 import { AnimatePresence, motion } from "framer-motion";
 import { WifiOff } from "lucide-react";
+import { useEffect, useState } from "react";
 import { useOnlineStatus } from "@/hooks/useOnlineStatus";
 
 /**
@@ -7,8 +8,12 @@ import { useOnlineStatus } from "@/hooks/useOnlineStatus";
  * Avisa que arquivos, downloads e renderizações em nuvem estão bloqueados.
  */
 export function OfflineBanner() {
+  // Render só no client pra evitar hydration mismatch — o SSR não conhece
+  // navigator.onLine nem consegue pingar o backend.
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
   const { fullyOnline, online } = useOnlineStatus();
-  if (fullyOnline) return null;
+  if (!mounted || fullyOnline) return null;
 
   return (
     <AnimatePresence>

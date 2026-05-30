@@ -6,11 +6,15 @@ import {
   getJob,
   openFolder,
   downloadClipUrl,
+  deleteJob,
+  retryJob,
   STATUS_LABEL,
+  type ApiError,
   type Clip,
   type Job,
 } from "@/lib/backend";
 import { CopyEditor } from "@/components/CopyEditor";
+import { BackendError } from "@/components/BackendError";
 
 export const Route = createFileRoute("/_authenticated/jobs/$jobId")({
   head: ({ params }) => ({
@@ -26,13 +30,20 @@ function JobDetail() {
   const { jobId } = Route.useParams();
   const [job, setJob] = useState<Job | null>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<ApiError | null>(null);
+  const [reloadKey, setReloadKey] = useState(0);
 
   useEffect(() => {
     let cancelled = false;
     const refresh = async () => {
-      const { job } = await getJob(jobId);
+      const res = await getJob(jobId);
       if (cancelled) return;
-      setJob(job);
+      if (res.ok) {
+        setJob(res.data.job);
+        setError(null);
+      } else {
+        setError(res.error);
+      }
       setLoading(false);
     };
     refresh();
@@ -41,12 +52,34 @@ function JobDetail() {
       cancelled = true;
       clearInterval(t);
     };
-  }, [jobId]);
+  }, [jobId, reloadKey]);
 
-  if (loading) {
+  if (loading && !job) {
     return (
       <main className="relative z-10 mx-auto max-w-6xl px-6 py-12">
         <div className="h-40 animate-pulse rounded-lg border border-border bg-surface" />
+      </main>
+    );
+  }
+
+  if (error && !job) {
+    return (
+      <main className="relative z-10 mx-auto max-w-6xl px-6 py-12">
+        <Link
+          to="/app"
+          className="mb-6 inline-block font-mono text-[11px] uppercase tracking-widest text-muted-foreground hover:text-foreground"
+        >
+          ← jobs
+        </Link>
+        <BackendError
+          error={error}
+          context={`Job ${jobId}`}
+          onRetry={() => {
+            setLoading(true);
+            setError(null);
+            setReloadKey((k) => k + 1);
+          }}
+        />
       </main>
     );
   }
@@ -68,6 +101,7 @@ function JobDetail() {
   }
 
   const isActive = job.status !== "done" && job.status !== "error";
+  const isError = job.status === "error";
 
   return (
     <main className="relative z-10 mx-auto max-w-6xl px-6 py-12">
@@ -86,9 +120,15 @@ function JobDetail() {
           <span>·</span>
           <span>{job.id}</span>
         </div>
-        <h1 className="mt-2 font-display text-5xl leading-tight">
-          {job.podcast_title}
-        </h1>
+        <div className="mt-2 flex flex-wrap items-start justify-between gap-4">
+          <h1 className="font-display text-5xl leading-tight">
+            {job.podcast_title}
+          </h1>
+          <JobActions
+            job={job}
+            onChange={() => setReloadKey((k) => k + 1)}
+          />
+        </div>
         <div className="mt-2 font-mono text-xs text-muted-foreground">
           {job.source}
         </div>
@@ -110,6 +150,15 @@ function JobDetail() {
               />
             </div>
             <PipelineSteps current={job.status} />
+          </div>
+        ) : isError ? (
+          <div className="mt-6 rounded-lg border border-destructive/30 bg-destructive/10 p-5">
+            <div className="font-mono text-[11px] uppercase tracking-widest text-destructive">
+              Falhou
+            </div>
+            <p className="mt-2 text-sm text-foreground">
+              {job.error ?? "Erro desconhecido no pipeline."}
+            </p>
           </div>
         ) : (
           <div className="mt-6 inline-flex items-center gap-2 rounded-full bg-primary px-4 py-1.5 font-mono text-[11px] uppercase tracking-widest text-primary-foreground">
@@ -156,6 +205,63 @@ function JobDetail() {
         </section>
       )}
     </main>
+  );
+}
+
+function JobActions({
+  job,
+  onChange,
+}: {
+  job: Job;
+  onChange: () => void;
+}) {
+  const [busy, setBusy] = useState(false);
+
+  async function onRetry() {
+    if (busy) return;
+    setBusy(true);
+    const res = await retryJob(job.id);
+    setBusy(false);
+    if (!res.ok) {
+      alert(`Não foi possível reenviar: ${res.error.message}`);
+      return;
+    }
+    onChange();
+  }
+
+  async function onDelete() {
+    if (busy) return;
+    if (!window.confirm(`Excluir "${job.podcast_title}"? Esta ação é definitiva.`))
+      return;
+    setBusy(true);
+    const res = await deleteJob(job.id);
+    setBusy(false);
+    if (!res.ok) {
+      alert(`Não foi possível excluir: ${res.error.message}`);
+      return;
+    }
+    window.location.assign("/app");
+  }
+
+  return (
+    <div className="flex shrink-0 items-center gap-2">
+      {job.status === "error" && (
+        <button
+          onClick={onRetry}
+          disabled={busy}
+          className="rounded-md bg-primary px-3 py-1.5 font-mono text-[11px] uppercase tracking-widest text-primary-foreground hover:opacity-90 disabled:opacity-40"
+        >
+          {busy ? "…" : "Tentar de novo"}
+        </button>
+      )}
+      <button
+        onClick={onDelete}
+        disabled={busy}
+        className="rounded-md border border-destructive/30 bg-destructive/10 px-3 py-1.5 font-mono text-[11px] uppercase tracking-widest text-destructive hover:bg-destructive/20 disabled:opacity-40"
+      >
+        excluir
+      </button>
+    </div>
   );
 }
 
