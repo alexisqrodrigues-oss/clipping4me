@@ -1,7 +1,7 @@
 /**
  * Backend client for the local Clipping4me Python service.
  *
- * Configure with VITE_BACKEND_URL (default: http://localhost:8000).
+ * Configure with VITE_BACKEND_URL (default: http://127.0.0.1:8000).
  * When the backend is offline, the app falls back to mock data so the UI
  * is fully usable for design/demo before the Python service exists.
  */
@@ -55,16 +55,34 @@ export interface Job {
 const BACKEND_URL_KEY = "clipping4me:backend-url";
 const DEFAULT_BACKEND_URL =
   (import.meta.env.VITE_BACKEND_URL as string | undefined) ??
-  "https://alexiss-macbook-pro.tail5140ea.ts.net";
+  "http://127.0.0.1:8000";
+
+function normalizeBackendUrl(url: string | null | undefined): string {
+  return (url ?? "").trim().replace(/\/+$/, "");
+}
+
+function readUrlFromQuery(): string | null {
+  if (typeof window === "undefined") return null;
+  const candidate = normalizeBackendUrl(
+    new URLSearchParams(window.location.search).get("backend"),
+  );
+  if (!candidate) return null;
+  window.localStorage.setItem(BACKEND_URL_KEY, candidate);
+  return candidate;
+}
 
 export function getBackendUrl(): string {
   if (typeof window === "undefined") return DEFAULT_BACKEND_URL;
-  return window.localStorage.getItem(BACKEND_URL_KEY) || DEFAULT_BACKEND_URL;
+  return (
+    readUrlFromQuery() ||
+    normalizeBackendUrl(window.localStorage.getItem(BACKEND_URL_KEY)) ||
+    DEFAULT_BACKEND_URL
+  );
 }
 
 export function setBackendUrl(url: string): void {
   if (typeof window === "undefined") return;
-  const clean = url.trim().replace(/\/+$/, "");
+  const clean = normalizeBackendUrl(url);
   if (clean && clean !== DEFAULT_BACKEND_URL) {
     window.localStorage.setItem(BACKEND_URL_KEY, clean);
   } else {
