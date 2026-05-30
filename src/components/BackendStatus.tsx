@@ -74,7 +74,7 @@ export function BackendStatus() {
             value={url}
             onChange={(e) => setUrl(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && save()}
-            placeholder="http://localhost:8000"
+            placeholder="https://api.clipping4.me"
             className="mt-2 w-full rounded-md border border-input bg-background px-3 py-2 font-mono text-xs outline-none focus:border-primary"
             autoFocus
           />
@@ -99,9 +99,8 @@ export function BackendStatus() {
             </button>
           </div>
           <p className="mt-3 font-mono text-[9px] leading-relaxed text-muted-foreground">
-            Use <span className="text-foreground">http://localhost:8000</span> pra
-            uso só no seu Mac. Pra LAN/internet, use uma URL HTTPS (Cloudflare
-            Tunnel, ngrok, Tailscale Funnel).
+            O padrão é <span className="text-foreground">https://api.clipping4.me</span>.
+            Só troque se quiser testar outro backend temporariamente.
           </p>
         </div>
       )}
