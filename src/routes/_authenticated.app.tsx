@@ -6,8 +6,10 @@ import {
   formatRelative,
   listJobs,
   STATUS_LABEL,
+  type ApiError,
   type Job,
 } from "@/lib/backend";
+import { BackendError } from "@/components/BackendError";
 
 export const Route = createFileRoute("/_authenticated/app")({
   head: () => ({
@@ -31,28 +33,30 @@ export const Route = createFileRoute("/_authenticated/app")({
 function Index() {
   const [jobs, setJobs] = useState<Job[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<ApiError | null>(null);
+  const [reloadKey, setReloadKey] = useState(0);
   const { fullyOnline } = useOnlineStatus();
 
   useEffect(() => {
     let cancelled = false;
     const refresh = async () => {
-      if (!fullyOnline) {
-        // Em modo offline, mantém o último cache visível e para o polling.
-        setLoading(false);
-        return;
-      }
       const res = await listJobs();
       if (cancelled) return;
-      setJobs(res.jobs);
+      if (res.ok) {
+        setJobs(res.data.jobs);
+        setError(null);
+      } else {
+        setError(res.error);
+      }
       setLoading(false);
     };
     refresh();
-    const t = setInterval(refresh, fullyOnline ? 2000 : 15000);
+    const t = setInterval(refresh, 3000);
     return () => {
       cancelled = true;
       clearInterval(t);
     };
-  }, [fullyOnline]);
+  }, [fullyOnline, reloadKey]);
 
   return (
     <main className="relative z-10 mx-auto max-w-6xl px-6 py-12">
@@ -70,39 +74,42 @@ function Index() {
         <div className="mb-4 flex items-center justify-between">
           <h2 className="font-mono text-xs uppercase tracking-[0.2em] text-muted-foreground">
             Jobs recentes
-            {!fullyOnline && (
-              <span className="ml-2 rounded-full border border-destructive/30 bg-destructive/10 px-2 py-0.5 text-[9px] text-destructive">
-                cache local
-              </span>
-            )}
           </h2>
-          {fullyOnline ? (
-            <Link
-              to="/new"
-              className="font-mono text-xs uppercase tracking-widest text-primary hover:underline"
-            >
-              + novo
-            </Link>
-          ) : (
-            <span
-              className="font-mono text-xs uppercase tracking-widest text-muted-foreground/50"
-              title="Disponível quando voltar online"
-            >
-              + novo (offline)
-            </span>
-          )}
+          <Link
+            to="/new"
+            className="font-mono text-xs uppercase tracking-widest text-primary hover:underline"
+          >
+            + novo
+          </Link>
         </div>
 
-        {loading ? (
+        {loading && jobs.length === 0 ? (
           <SkeletonList />
+        ) : error && jobs.length === 0 ? (
+          <BackendError
+            error={error}
+            context="Listando jobs"
+            onRetry={() => {
+              setLoading(true);
+              setError(null);
+              setReloadKey((k) => k + 1);
+            }}
+          />
         ) : jobs.length === 0 ? (
           <EmptyState />
         ) : (
-          <ul className="space-y-3">
-            {jobs.map((job) => (
-              <JobRow key={job.id} job={job} />
-            ))}
-          </ul>
+          <>
+            {error && (
+              <div className="mb-4 rounded-md border border-destructive/30 bg-destructive/10 px-4 py-2 font-mono text-[11px] text-destructive">
+                Lista pode estar desatualizada — {error.kind}: {error.message}
+              </div>
+            )}
+            <ul className="space-y-3">
+              {jobs.map((job) => (
+                <JobRow key={job.id} job={job} />
+              ))}
+            </ul>
+          </>
         )}
       </section>
     </main>
