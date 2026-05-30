@@ -187,6 +187,18 @@ def _slice_segments(all_segs: list[dict], start: float, end: float, pick: dict) 
     return out
 
 
+def _dominant_speaker(segs: list[dict]) -> str | None:
+    counts: dict[str, float] = {}
+    for s in segs:
+        sp = s.get("speaker")
+        if not sp:
+            continue
+        counts[sp] = counts.get(sp, 0.0) + max(0.0, s["end"] - s["start"])
+    if not counts:
+        return None
+    return max(counts.items(), key=lambda x: x[1])[0]
+
+
 def _write_srt(path: Path, all_segs: list[dict], start: float, end: float) -> None:
     """Escreve um SRT com timestamps relativos ao corte."""
     def fmt(t: float) -> str:
