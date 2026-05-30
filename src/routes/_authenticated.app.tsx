@@ -70,13 +70,27 @@ function Index() {
         <div className="mb-4 flex items-center justify-between">
           <h2 className="font-mono text-xs uppercase tracking-[0.2em] text-muted-foreground">
             Jobs recentes
+            {!fullyOnline && (
+              <span className="ml-2 rounded-full border border-destructive/30 bg-destructive/10 px-2 py-0.5 text-[9px] text-destructive">
+                cache local
+              </span>
+            )}
           </h2>
-          <Link
-            to="/new"
-            className="font-mono text-xs uppercase tracking-widest text-primary hover:underline"
-          >
-            + novo
-          </Link>
+          {fullyOnline ? (
+            <Link
+              to="/new"
+              className="font-mono text-xs uppercase tracking-widest text-primary hover:underline"
+            >
+              + novo
+            </Link>
+          ) : (
+            <span
+              className="font-mono text-xs uppercase tracking-widest text-muted-foreground/50"
+              title="Disponível quando voltar online"
+            >
+              + novo (offline)
+            </span>
+          )}
         </div>
 
         {loading ? (
