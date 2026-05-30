@@ -12,15 +12,27 @@ from __future__ import annotations
 from pathlib import Path
 from typing import List, TypedDict
 
-from .config import WHISPER_MODEL
+from .config import (
+    DIARIZE_MAX_SPEAKERS,
+    DIARIZE_MIN_SPEAKERS,
+    HF_TOKEN,
+    USE_WHISPERX,
+    WHISPER_DEVICE,
+    WHISPER_LANGUAGE,
+    WHISPER_MODEL,
+)
 
 _model = None
+_whisperx_model = None
+_align_model = None
+_diarize_model = None
 
 
 class Segment(TypedDict):
     start: float
     end: float
     text: str
+    speaker: str | None
 
 
 def _load():
@@ -40,9 +52,88 @@ def transcribe(audio_path: Path, language: str | None = "pt") -> List[Segment]:
         fp16=False,  # mais estável em CPU/MPS
     )
     return [
-        {"start": float(s["start"]), "end": float(s["end"]), "text": s["text"].strip()}
+        {"start": float(s["start"]), "end": float(s["end"]), "text": s["text"].strip(), "speaker": None}
         for s in result["segments"]
     ]
+
+
+def _pick_device() -> str:
+    if WHISPER_DEVICE != "auto":
+        return WHISPER_DEVICE
+    try:
+        import torch
+        if torch.cuda.is_available():
+            return "cuda"
+        if getattr(torch.backends, "mps", None) and torch.backends.mps.is_available():
+            return "mps"
+    except Exception:
+        pass
+    return "cpu"
+
+
+def transcribe_diarized(audio_path: Path, language: str | None = None) -> List[Segment]:
+    """Transcrição com diarização via WhisperX (opt-in).
+
+    Requer: `pip install -r requirements-diarize.txt` + HF_TOKEN no .env +
+    aceitar termos em huggingface.co/pyannote/speaker-diarization-3.1.
+
+    Se USE_WHISPERX=false ou HF_TOKEN vazio, cai pro whisper normal (sem speakers).
+    """
+    if not USE_WHISPERX:
+        return transcribe(audio_path, language=language or WHISPER_LANGUAGE)
+    if not HF_TOKEN:
+        # sem token não dá pra rodar pyannote; faz só transcrição
+        return transcribe(audio_path, language=language or WHISPER_LANGUAGE)
+
+    global _whisperx_model, _align_model, _diarize_model
+    try:
+        import whisperx  # type: ignore
+    except ImportError as e:
+        raise RuntimeError(
+            "WhisperX não instalado. Rode: pip install -r backend/requirements-diarize.txt"
+        ) from e
+
+    device = _pick_device()
+    # whisperx usa float16 em GPU, float32 em CPU/MPS
+    compute_type = "float16" if device == "cuda" else "int8"
+    lang = language or WHISPER_LANGUAGE
+
+    if _whisperx_model is None:
+        _whisperx_model = whisperx.load_model(
+            WHISPER_MODEL, device, compute_type=compute_type, language=lang
+        )
+    audio = whisperx.load_audio(str(audio_path))
+    result = _whisperx_model.transcribe(audio, batch_size=8, language=lang)
+
+    # alinhamento (timestamps por palavra)
+    if _align_model is None:
+        _align_model = whisperx.load_align_model(language_code=lang, device=device)
+    aligned = whisperx.align(
+        result["segments"], _align_model[0], _align_model[1], audio, device,
+        return_char_alignments=False,
+    )
+
+    # diarização
+    if _diarize_model is None:
+        _diarize_model = whisperx.DiarizationPipeline(
+            use_auth_token=HF_TOKEN, device=device,
+        )
+    diarize_segments = _diarize_model(
+        audio,
+        min_speakers=DIARIZE_MIN_SPEAKERS,
+        max_speakers=DIARIZE_MAX_SPEAKERS,
+    )
+    final = whisperx.assign_word_speakers(diarize_segments, aligned)
+
+    out: List[Segment] = []
+    for s in final.get("segments", []):
+        out.append({
+            "start": float(s["start"]),
+            "end": float(s["end"]),
+            "text": (s.get("text") or "").strip(),
+            "speaker": s.get("speaker"),
+        })
+    return out
 
 
 def parse_srt(srt_path: Path) -> List[Segment]:
