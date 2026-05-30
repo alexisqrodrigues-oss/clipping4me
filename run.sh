@@ -4,10 +4,10 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 cd "$SCRIPT_DIR"
 
-FRONTEND_URL="${CLIPPING4ME_FRONTEND_URL:-https://clipping4me.lovable.app}"
+FRONTEND_URL="${CLIPPING4ME_FRONTEND_URL:-https://clipping4.me}"
 BACKEND_PORT="${CLIPPING4ME_BACKEND_PORT:-8000}"
 OLLAMA_MODEL="${CLIPPING4ME_OLLAMA_MODEL:-qwen2.5-coder:7b}"
-TAILSCALE_ENABLED="${CLIPPING4ME_ENABLE_TAILSCALE:-1}"
+CLOUDFLARE_TUNNEL_ENABLED="${CLIPPING4ME_ENABLE_CLOUDFLARE_TUNNEL:-1}"
 
 log()  { printf "\033[1;36m[clipping4me]\033[0m %s\n" "$*"; }
 ok()   { printf "\033[1;32m[ok]\033[0m %s\n" "$*"; }
@@ -87,36 +87,18 @@ ensure_backend() {
 }
 
 ensure_public_backend() {
-  if [ "$TAILSCALE_ENABLED" != "1" ]; then
+  if [ "$CLOUDFLARE_TUNNEL_ENABLED" != "1" ]; then
     printf 'http://127.0.0.1:%s' "$BACKEND_PORT"
     return
   fi
 
-  if ! command -v tailscale >/dev/null 2>&1; then
-    warn "Tailscale não está instalado; abrindo sem URL pública configurada."
-    printf 'http://127.0.0.1:%s' "$BACKEND_PORT"
+  if [ -f "$HOME/.cloudflared/config.yml" ]; then
+    ok "Usando backend público em https://api.clipping4.me"
+    printf '%s' 'https://api.clipping4.me'
     return
   fi
 
-  if ! tailscale status >/dev/null 2>&1; then
-    warn "Tailscale não está conectado; use 'tailscale login' e rode novamente se quiser acesso HTTPS público."
-    printf 'http://127.0.0.1:%s' "$BACKEND_PORT"
-    return
-  fi
-
-  log "Configurando Tailscale Serve + Funnel para o backend..."
-  sudo tailscale serve --bg --https=443 "http://127.0.0.1:${BACKEND_PORT}" >/tmp/clipping4me-tailscale.log 2>&1 || true
-  sudo tailscale funnel --bg 443 >>/tmp/clipping4me-tailscale.log 2>&1 || true
-
-  local public_url
-  public_url="$(tailscale funnel status 2>/dev/null | grep -Eo 'https://[^ ]+\.ts\.net' | head -n1 || true)"
-  if [ -n "$public_url" ]; then
-    ok "URL pública do backend: $public_url"
-    printf '%s' "$public_url"
-    return
-  fi
-
-  warn "Não consegui detectar a URL pública do Tailscale. Veja /tmp/clipping4me-tailscale.log"
+  warn "Config do Cloudflare Tunnel não encontrada em ~/.cloudflared/config.yml"
   printf 'http://127.0.0.1:%s' "$BACKEND_PORT"
 }
 

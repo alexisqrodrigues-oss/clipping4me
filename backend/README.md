@@ -1,9 +1,9 @@
-# Clipping4me — Backend local
+# Clipping4me — Backend no seu Mac
 
-Roda 100% no seu Mac. A UI (este projeto Lovable) fala com este backend em `http://localhost:8000`.
+Roda no seu Mac e expõe o backend em `https://api.clipping4.me` via Cloudflare Tunnel.
 
-> **Quer deixar o Mac sempre ligado e acessível de qualquer lugar com login?**
-> Veja **[DEPLOY_MAC.md](./DEPLOY_MAC.md)** — passo a passo de Tailscale Funnel + LaunchAgent.
+> **Quer deixar tudo definitivo no seu domínio?**
+> Veja **[DEPLOY_MAC.md](./DEPLOY_MAC.md)** — passo a passo de Cloudflare + LaunchAgent.
 
 ## 1. Instalar dependências de sistema (uma vez)
 
@@ -16,7 +16,7 @@ Depois suba o Ollama e baixe um modelo:
 
 ```bash
 brew services start ollama
-ollama pull llama3.1:8b      # ~5GB. Pode trocar por qwen2.5:7b, mistral, etc.
+ollama pull qwen2.5-coder:7b # pode trocar depois se quiser
 ```
 
 ## 2. Subir o backend
@@ -45,7 +45,7 @@ curl http://localhost:8000/health
 
 1. Abra a UI. Vai aparecer a tela de login.
 2. Entre com `admin` + sua senha (ou outro valor, se você definir `ADMIN_USERNAME`).
-3. Pra trocar a URL do backend, clica no chip `● online/offline` no header → cola a URL → salvar.
+3. O padrão já é `https://api.clipping4.me`, então normalmente você não precisa trocar nada.
 4. Pra criar mais usuários: menu **Admin** (só visível pra admins).
 
 ## Estrutura de arquivos gerados
@@ -76,7 +76,8 @@ Tudo fica em `~/Clipping4me/`:
 |---|---|---|
 | `CLIPPING4ME_ROOT` | `~/Clipping4me` | onde tudo é salvo |
 | `OLLAMA_URL` | `http://localhost:11434` | endpoint do Ollama |
-| `OLLAMA_MODEL` | `llama3.1:8b` | modelo usado para escolher cortes |
+| `OLLAMA_MODEL` | `qwen2.5-coder:7b` | modelo usado para escolher cortes |
+| `FRONTEND_URL` | `https://clipping4.me` | frontend autorizado no CORS |
 | `WHISPER_MODEL` | `small` | `tiny`, `base`, `small`, `medium`, `large` |
 | `MAX_CLIPS` | `8` | máximo de cortes por job |
 | `CLIP_MIN_SEC` / `CLIP_MAX_SEC` | `30` / `90` | duração-alvo dos cortes |
@@ -107,4 +108,4 @@ POST /jobs/upload   (upload de vídeo)    │
 - **`yt-dlp: HTTP 403`** → atualize: `brew upgrade yt-dlp`.
 - **Whisper muito lento** → use `WHISPER_MODEL=base` ou `tiny`.
 - **LLM devolve JSON inválido** → o backend já faz fallback; se persistir, troque o modelo (`qwen2.5:7b` costuma ser mais obediente).
-- **UI continua em "modo demo"** → confira `curl http://localhost:8000/health` e que não tem nada em `localhost:8000` bloqueando.
+- **UI continua em "modo demo"** → confira `curl http://localhost:8000/health` e se o tunnel do Cloudflare está ativo para `api.clipping4.me`.

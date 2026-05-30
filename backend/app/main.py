@@ -35,7 +35,7 @@ from .auth import (
     require_admin,
     require_user,
 )
-from .config import JOBS_DIR, ROOT_DIR, ensure_dirs
+from .config import FRONTEND_URL, JOBS_DIR, ROOT_DIR, ensure_dirs
 from .models import CreateJobInput, Job, OpenFolderInput
 from .pipeline import run_job
 
@@ -47,7 +47,14 @@ app = FastAPI(title="Clipping4me Backend", version="0.2.0")
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=[
+        FRONTEND_URL,
+        "https://www.clipping4.me",
+        "http://localhost:3000",
+        "http://127.0.0.1:3000",
+        "http://localhost:5173",
+        "http://127.0.0.1:5173",
+    ],
     allow_methods=["*"],
     allow_headers=["*"],
     expose_headers=["*"],

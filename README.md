@@ -1,13 +1,14 @@
 # Clipping4Me
 
-Fluxo local para clonar o repositório, dar um clique e subir frontend + backend local com Ollama no Mac.
+Fluxo para você clonar no Mac, dar um clique e subir o backend local com Ollama já integrado ao domínio `clipping4.me`.
 
 ## O que já ficou organizado neste repo
 
-- `run.sh` na raiz para ser o bootstrap principal
+- `run.sh` na raiz para ser o bootstrap principal já apontando para `https://clipping4.me`
 - `Clipping4Me.command` para duplo clique no Finder
 - `backend/run.sh` só cuida do backend Python
 - `backend/install-launchagent.sh` gera o LaunchAgent com o caminho real do clone
+- `backend/install-cloudflare.sh` cria/configura o Cloudflare Tunnel para `api.clipping4.me`
 - frontend aceita `?backend=` automaticamente, então o launcher já abre a UI apontando pro backend certo
 - backend sem caminhos fixos de usuário/máquina
 
@@ -31,19 +32,26 @@ clipping4me/
 
 ```bash
 brew install python@3.11 ffmpeg yt-dlp ollama
-brew install --cask tailscale
+brew install cloudflared
 ```
 
-### 2. Faça login no Tailscale e deixe o Ollama disponível
+### 2. Faça login no Cloudflare e deixe o Ollama disponível
 
 ```bash
-open -a Tailscale
-tailscale login
+cloudflared tunnel login
 ```
 
 Se preferir, o `run.sh` já tenta subir o Ollama sozinho.
 
-### 3. Inicie com um clique
+### 3. Configure o tunnel do domínio uma vez
+
+```bash
+bash backend/install-cloudflare.sh
+```
+
+Isso cria o tunnel e grava `~/.cloudflared/config.yml` automaticamente para usar `api.clipping4.me`.
+
+### 4. Inicie com um clique
 
 - Finder: duplo clique em `Clipping4Me.command`
 - ou Terminal:
@@ -63,7 +71,7 @@ ADMIN_BOOTSTRAP_PASSWORD='SuaSenhaForte' bash run.sh
 - **Ollama** rodando
 - **modelo do Ollama** baixado (`qwen2.5-coder:7b` por padrão)
 - **backend Python** na porta `8000`
-- **Tailscale conectado** se você quiser acesso HTTPS público fora do Mac
+- **Cloudflare Tunnel** instalado/configurado para servir `https://api.clipping4.me`
 
 O launcher já sobe o que conseguir automaticamente e abre a UI com a URL correta do backend.
 

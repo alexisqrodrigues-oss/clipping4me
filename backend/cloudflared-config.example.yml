@@ -1,0 +1,7 @@
+tunnel: SEU_TUNNEL_ID
+credentials-file: /Users/SEU_USUARIO/.cloudflared/SEU_TUNNEL_ID.json
+
+ingress:
+  - hostname: api.clipping4.me
+    service: http://127.0.0.1:8000
+  - service: http_status:404
