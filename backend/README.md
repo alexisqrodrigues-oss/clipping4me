@@ -26,7 +26,7 @@ cd backend
 ADMIN_BOOTSTRAP_PASSWORD='SuaSenhaForte' bash run.sh
 ```
 
-Na primeira execução vai criar `.venv`, instalar tudo e criar um usuário admin (`axis`) com a senha que você passar em `ADMIN_BOOTSTRAP_PASSWORD`. Whisper baixa ~500MB do modelo na primeira transcrição.
+Na primeira execução o `run.sh` prefere Python 3.11, cria `.venv`, instala tudo e cria um usuário admin (`axis`) com a senha que você passar em `ADMIN_BOOTSTRAP_PASSWORD`. Whisper baixa ~500MB do modelo na primeira transcrição.
 
 Sem `ADMIN_BOOTSTRAP_PASSWORD`, uma senha aleatória é gerada e impressa **uma vez** no log — anote.
 
@@ -102,6 +102,7 @@ POST /jobs/upload   (upload de vídeo)    │
 
 ## Problemas comuns
 
+- **`ModuleNotFoundError: No module named 'pkg_resources'` ao instalar `openai-whisper`** → rode `bash run.sh`; ele já instala com `setuptools<81` e `--no-build-isolation`.
 - **`ollama: command not found`** → `brew install ollama && brew services start ollama`.
 - **`yt-dlp: HTTP 403`** → atualize: `brew upgrade yt-dlp`.
 - **Whisper muito lento** → use `WHISPER_MODEL=base` ou `tiny`.
