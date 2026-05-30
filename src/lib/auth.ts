@@ -65,7 +65,10 @@ export async function login(
 ): Promise<AuthUser> {
   const res = await fetch(`${getBackendUrl()}/auth/login`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: {
+      "Content-Type": "application/json",
+      "ngrok-skip-browser-warning": "true",
+    },
     body: JSON.stringify({ username, password }),
   });
   if (!res.ok) {
@@ -88,7 +91,10 @@ export async function logout(): Promise<void> {
   try {
     await fetch(`${getBackendUrl()}/auth/logout`, {
       method: "POST",
-      headers: { Authorization: `Bearer ${token}` },
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "ngrok-skip-browser-warning": "true",
+      },
     });
   } catch {
     /* ignora */
@@ -106,6 +112,7 @@ export async function authFetch(
   const token = getToken();
   const headers = new Headers(init.headers);
   if (token) headers.set("Authorization", `Bearer ${token}`);
+  headers.set("ngrok-skip-browser-warning", "true");
   const res = await fetch(url, { ...init, headers });
   if (res.status === 401 && typeof window !== "undefined") {
     clearSession();
