@@ -24,6 +24,7 @@ from fastapi import (
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from starlette.responses import Response
+from pydantic import BaseModel
 
 from . import auth, storage
 from . import copy as copy_mod
