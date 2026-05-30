@@ -26,6 +26,7 @@ from fastapi.staticfiles import StaticFiles
 from starlette.responses import Response
 
 from . import auth, storage
+from . import copy as copy_mod
 from .auth import (
     CreateUserInput,
     LoginInput,
@@ -37,6 +38,7 @@ from .auth import (
 )
 from .config import FRONTEND_URL, JOBS_DIR, ROOT_DIR, ensure_dirs
 from .models import CreateJobInput, Job, OpenFolderInput
+from .models import CopyChatInput
 from .pipeline import run_job
 
 ensure_dirs()
@@ -215,6 +217,112 @@ async def open_in_finder(
         return {"ok": True}
     except Exception as e:
         return {"ok": False, "error": str(e)}
+
+
+# ---------- copy editor (Ollama) ----------
+@app.get("/models")
+async def list_ollama_models(_: User = Depends(require_user)):
+    try:
+        return {"models": await copy_mod.list_models()}
+    except Exception as e:
+        return {"models": [], "error": str(e)}
+
+
+def _find_clip(job: Job, clip_id: str):
+    for c in job.clips or []:
+        if c.id == clip_id:
+            return c
+    return None
+
+
+def _persist_clip(job: Job, updated) -> Job:
+    new_clips = [updated if c.id == updated.id else c for c in (job.clips or [])]
+    storage.update_job(job.id, clips=[c.model_dump() for c in new_clips])
+    job.clips = new_clips
+    return job
+
+
+@app.post("/jobs/{job_id}/clips/{clip_id}/copy")
+async def regenerate_copy_all(
+    job_id: str,
+    clip_id: str,
+    payload: CopyChatInput,
+    _: User = Depends(require_user),
+):
+    job = storage.get_job(job_id)
+    if not job:
+        raise HTTPException(404, "job not found")
+    clip = _find_clip(job, clip_id)
+    if not clip:
+        raise HTTPException(404, "clip not found")
+    out = await copy_mod.generate_all(
+        clip.model_dump(),
+        job.podcast_title,
+        preset=payload.preset,
+        model=payload.model,
+    )
+    clip.caption = out.get("caption") or clip.caption
+    clip.description = out.get("description") or clip.description
+    clip.hashtags = out.get("hashtags") or clip.hashtags
+    clip.cta = out.get("cta") or clip.cta
+    job = _persist_clip(job, clip)
+    return {"clip": clip.model_dump()}
+
+
+@app.post("/jobs/{job_id}/clips/{clip_id}/copy/{field}")
+async def regenerate_copy_field(
+    job_id: str,
+    clip_id: str,
+    field: str,
+    payload: CopyChatInput,
+    _: User = Depends(require_user),
+):
+    if field not in {"caption", "description", "hashtags", "cta"}:
+        raise HTTPException(400, "campo inválido")
+    job = storage.get_job(job_id)
+    if not job:
+        raise HTTPException(404, "job not found")
+    clip = _find_clip(job, clip_id)
+    if not clip:
+        raise HTTPException(404, "clip not found")
+    value = await copy_mod.generate_field(
+        field,
+        clip.model_dump(),
+        job.podcast_title,
+        instruction=payload.instruction,
+        preset=payload.preset,
+        model=payload.model,
+    )
+    setattr(clip, field, value)
+    job = _persist_clip(job, clip)
+    return {"clip": clip.model_dump(), "field": field, "value": value}
+
+
+class CopyPatch(BaseModel):
+    caption: Optional[str] = None
+    description: Optional[str] = None
+    hashtags: Optional[list[str]] = None
+    cta: Optional[str] = None
+
+
+@app.patch("/jobs/{job_id}/clips/{clip_id}/copy")
+async def save_copy(
+    job_id: str,
+    clip_id: str,
+    payload: CopyPatch,
+    _: User = Depends(require_user),
+):
+    """Persiste edições manuais feitas pelo usuário no editor."""
+    job = storage.get_job(job_id)
+    if not job:
+        raise HTTPException(404, "job not found")
+    clip = _find_clip(job, clip_id)
+    if not clip:
+        raise HTTPException(404, "clip not found")
+    for k, v in payload.model_dump(exclude_none=True).items():
+        setattr(clip, k, v)
+    job = _persist_clip(job, clip)
+    return {"clip": clip.model_dump()}
 
 
 # ---------- helpers ----------
