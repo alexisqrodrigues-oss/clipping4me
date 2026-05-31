@@ -24,9 +24,15 @@ WHISPER_MODEL = os.environ.get("WHISPER_MODEL", "small")  # tiny | base | small 
 WHISPER_DEVICE = os.environ.get("WHISPER_DEVICE", "auto")  # auto | cpu | mps | cuda
 WHISPER_LANGUAGE = os.environ.get("WHISPER_LANGUAGE", "pt")
 
-# Diarização (WhisperX + pyannote). Opt-in: requer HF_TOKEN e install extra.
-USE_WHISPERX = os.environ.get("USE_WHISPERX", "false").lower() in ("1", "true", "yes")
-HF_TOKEN = os.environ.get("HF_TOKEN", "")
+# Diarização (WhisperX + pyannote).
+# As dependências são instaladas por padrão. Se HF_TOKEN existir, a diarização
+# liga automaticamente; USE_WHISPERX só serve para forçar on/off.
+HF_TOKEN = os.environ.get("HF_TOKEN", "").strip()
+_USE_WHISPERX_RAW = os.environ.get("USE_WHISPERX")
+if _USE_WHISPERX_RAW is None:
+    USE_WHISPERX = bool(HF_TOKEN)
+else:
+    USE_WHISPERX = _USE_WHISPERX_RAW.strip().lower() in ("1", "true", "yes")
 DIARIZE_MIN_SPEAKERS = int(os.environ.get("DIARIZE_MIN_SPEAKERS", "1"))
 DIARIZE_MAX_SPEAKERS = int(os.environ.get("DIARIZE_MAX_SPEAKERS", "6"))
 
