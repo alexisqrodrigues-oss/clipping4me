@@ -41,7 +41,7 @@ source .venv/bin/activate
 python -m pip install -q --upgrade pip "setuptools<81" wheel
 python -m pip install -q --no-build-isolation -r requirements.txt
 
-UVICORN_ARGS=(app.main:app --host 0.0.0.0 --port "${CLIPPING4ME_BACKEND_PORT:-8000}")
+UVICORN_ARGS=(app.main:app --host 0.0.0.0 --port "${CLIPPING4ME_BACKEND_PORT:-8765}")
 
 if [ "${CLIPPING4ME_RELOAD:-0}" = "1" ]; then
   UVICORN_ARGS+=(--reload)

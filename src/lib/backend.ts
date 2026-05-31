@@ -90,7 +90,7 @@ function getDefaultBackendUrl(): string {
 
   // Em localhost/preview aponta pro backend local automaticamente
   if (!isProductionHost()) {
-    return "http://127.0.0.1:8000";
+    return "http://127.0.0.1:8765";
   }
 
   // Produção: domínio público via Cloudflare Tunnel
