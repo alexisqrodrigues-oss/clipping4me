@@ -76,53 +76,71 @@ export type ApiResult<T> =
   | { ok: false; error: ApiError };
 
 const BACKEND_URL_KEY = "clipping4me:backend-url";
-const DEFAULT_BACKEND_URL =
-  (import.meta.env.VITE_BACKEND_URL as string | undefined) ??
-  "https://api.clipping4.me";
+
+function isProductionHost(): boolean {
+  if (typeof window === "undefined") return true; // SSR = assume produção
+  const host = window.location.hostname;
+  return host === "clipping4.me" || host === "www.clipping4.me";
+}
+
+function getDefaultBackendUrl(): string {
+  // Build-time override (CI/CD / env)
+  const envUrl = (import.meta.env.VITE_BACKEND_URL as string | undefined);
+  if (envUrl) return envUrl;
+
+  // Em localhost/preview aponta pro backend local automaticamente
+  if (!isProductionHost()) {
+    return "http://127.0.0.1:8000";
+  }
+
+  // Produção: domínio público via Cloudflare Tunnel
+  return "https://api.clipping4.me";
+}
 
 function normalizeBackendUrl(url: string | null | undefined): string {
   return (url ?? "").trim().replace(/\/+$/, "");
 }
 
 /**
- * Backend URL is fixed via build-time env (VITE_BACKEND_URL). We no longer
- * accept a `?backend=` query-param override — that allowed an attacker to send
- * a crafted link that redirected all authenticated requests (including the
- * Bearer token) to a malicious server.
+ * Retorna a URL do backend.
  *
- * If a legacy override is still in localStorage from a previous build, ignore
- * it and clear it on first read.
+ * - Em produção (clipping4.me): sempre https://api.clipping4.me (ignora override)
+ * - Em localhost/preview: usa http://127.0.0.1:8000 por padrão, mas permite
+ *   override via query param ?backend= (útil pro .command local)
  */
 export function getBackendUrl(): string {
+  const defaultUrl = getDefaultBackendUrl();
+
+  // Produção: nunca aceita override (segurança)
+  if (isProductionHost()) {
+    return defaultUrl;
+  }
+
+  // Local/preview: permite ?backend= override (limpa da URL depois)
   if (typeof window !== "undefined") {
-    // One-time cleanup of any previously-stored override.
-    try {
-      if (window.localStorage.getItem(BACKEND_URL_KEY)) {
-        window.localStorage.removeItem(BACKEND_URL_KEY);
-      }
-      // Strip any stale ?backend= from the URL without persisting it.
-      const params = new URLSearchParams(window.location.search);
-      if (params.has("backend")) {
-        params.delete("backend");
-        const next = `${window.location.pathname}${
-          params.toString() ? `?${params.toString()}` : ""
-        }${window.location.hash}`;
-        window.history.replaceState({}, "", next);
-      }
-    } catch {
-      /* ignore storage errors */
+    const params = new URLSearchParams(window.location.search);
+    const override = normalizeBackendUrl(params.get("backend"));
+    if (override) {
+      // Limpa o param da URL pra não ficar na history
+      params.delete("backend");
+      const next = `${window.location.pathname}${
+        params.toString() ? `?${params.toString()}` : ""
+      }${window.location.hash}`;
+      window.history.replaceState({}, "", next);
+      return override;
     }
   }
-  return DEFAULT_BACKEND_URL;
+
+  return defaultUrl;
 }
 
-/** @deprecated backend URL is now fixed at build time. This is a no-op. */
+/** @deprecated backend URL é dinâmico agora. Use getBackendUrl(). */
 export function setBackendUrl(_url: string): void {
-  /* intentionally no-op — see getBackendUrl above */
+  /* intentionally no-op */
 }
 
 /** @deprecated use getBackendUrl() */
-export const BACKEND_URL = DEFAULT_BACKEND_URL;
+export const BACKEND_URL = getDefaultBackendUrl();
 
 function classifyStatus(status: number): ApiErrorKind {
   if (status === 401) return "unauthorized";

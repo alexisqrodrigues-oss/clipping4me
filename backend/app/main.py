@@ -182,6 +182,46 @@ async def get_job(job_id: str, user: User = Depends(require_user)):
     return {"job": job.model_dump()}
 
 
+@app.delete("/jobs/{job_id}")
+async def delete_job(job_id: str, user: User = Depends(require_user)):
+    job = storage.get_job(job_id)
+    if not job:
+        raise HTTPException(404, "job not found")
+    _require_job_owner(job, user)
+    # remove arquivos de trabalho se existirem
+    work = JOBS_DIR / job_id
+    if work.exists():
+        shutil.rmtree(work, ignore_errors=True)
+    # remove arquivos de mídia servidos
+    media = ROOT_DIR / "media" / job_id
+    if media.exists():
+        shutil.rmtree(media, ignore_errors=True)
+    storage.delete_job(job_id)
+    return {"ok": True}
+
+
+@app.post("/jobs/{job_id}/retry")
+async def retry_job(
+    job_id: str,
+    background: BackgroundTasks,
+    user: User = Depends(require_user),
+):
+    job = storage.get_job(job_id)
+    if not job:
+        raise HTTPException(404, "job not found")
+    _require_job_owner(job, user)
+    if job.status not in {"error", "done"}:
+        raise HTTPException(400, f"Não é possível retry: status atual é '{job.status}'")
+    # reseta job
+    job.status = "queued"
+    job.progress = 0
+    job.error = None
+    job.clips = None
+    storage.save_job(job)
+    background.add_task(_run_async_safe, job)
+    return {"job": job.model_dump()}
+
+
 @app.post("/jobs")
 async def create_job(
     input: CreateJobInput,
