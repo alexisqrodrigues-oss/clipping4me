@@ -42,6 +42,8 @@ from .config import FRONTEND_URL, JOBS_DIR, ROOT_DIR, ensure_dirs
 from .models import CreateJobInput, Job, OpenFolderInput
 from .models import CopyChatInput
 from .pipeline import run_job
+from .config import OLLAMA_URL, OLLAMA_MODEL
+import httpx
 
 ensure_dirs()
 (ROOT_DIR / "media").mkdir(exist_ok=True)
@@ -111,6 +113,107 @@ async def serve_media(path: str, request: Request):
 @app.get("/health")
 async def health():
     return {"ok": True}
+
+
+# ---------- health detalhado (público — não vaza dados sensíveis) ----------
+@app.get("/health/full")
+async def health_full():
+    """Verifica todas as dependências necessárias pra rodar um job.
+
+    Retorna uma lista de componentes, cada um com status ok/warn/error e
+    uma mensagem amigável. Usado pelo card de status na UI.
+    """
+    checks: list[dict] = []
+
+    # 1) API (se respondemos, está ok)
+    checks.append({
+        "id": "api",
+        "label": "API",
+        "status": "ok",
+        "detail": "respondendo",
+    })
+
+    # 2) ffmpeg
+    ffmpeg = shutil.which("ffmpeg")
+    checks.append({
+        "id": "ffmpeg",
+        "label": "ffmpeg",
+        "status": "ok" if ffmpeg else "error",
+        "detail": ffmpeg or "não instalado (brew install ffmpeg)",
+    })
+
+    # 3) yt-dlp
+    ytdlp = shutil.which("yt-dlp")
+    checks.append({
+        "id": "ytdlp",
+        "label": "yt-dlp",
+        "status": "ok" if ytdlp else "error",
+        "detail": ytdlp or "não instalado (pip install yt-dlp)",
+    })
+
+    # 4) Ollama up + modelo presente
+    ollama_status = "error"
+    ollama_detail = "Ollama offline"
+    model_status = "error"
+    model_detail = f"modelo {OLLAMA_MODEL} indisponível"
+    try:
+        async with httpx.AsyncClient(timeout=4.0) as cx:
+            r = await cx.get(f"{OLLAMA_URL}/api/tags")
+            if r.status_code == 200:
+                ollama_status = "ok"
+                ollama_detail = OLLAMA_URL
+                tags = r.json().get("models", [])
+                names = [m.get("name", "") for m in tags]
+                # match exato ou prefixo (qwen2.5-coder:7b vs qwen2.5-coder:7b-instruct)
+                if any(n == OLLAMA_MODEL or n.startswith(OLLAMA_MODEL.split(":")[0]) for n in names):
+                    model_status = "ok"
+                    model_detail = OLLAMA_MODEL
+                else:
+                    model_detail = f"baixe com: ollama pull {OLLAMA_MODEL}"
+    except Exception as e:
+        ollama_detail = f"sem resposta em {OLLAMA_URL}"
+    checks.append({"id": "ollama", "label": "Ollama", "status": ollama_status, "detail": ollama_detail})
+    checks.append({"id": "ollama_model", "label": "Modelo LLM", "status": model_status, "detail": model_detail})
+
+    # 5) Espaço em disco
+    try:
+        usage = shutil.disk_usage(str(ROOT_DIR))
+        free_gb = usage.free / (1024 ** 3)
+        total_gb = usage.total / (1024 ** 3)
+        if free_gb < 2:
+            disk_status, disk_detail = "error", f"apenas {free_gb:.1f} GB livres"
+        elif free_gb < 10:
+            disk_status, disk_detail = "warn", f"{free_gb:.1f} GB livres de {total_gb:.0f} GB"
+        else:
+            disk_status, disk_detail = "ok", f"{free_gb:.0f} GB livres de {total_gb:.0f} GB"
+    except Exception as e:
+        disk_status, disk_detail = "warn", str(e)
+    checks.append({"id": "disk", "label": "Espaço em disco", "status": disk_status, "detail": disk_detail})
+
+    # 6) Fila de jobs (quantos em processamento agora)
+    try:
+        active = [j for j in storage.list_jobs(include_all=True)
+                  if j.status in {"queued", "downloading", "transcribing", "analyzing", "cutting"}]
+        n = len(active)
+        if n == 0:
+            q_status, q_detail = "ok", "fila vazia"
+        elif n <= 3:
+            q_status, q_detail = "ok", f"{n} job(s) em andamento"
+        else:
+            q_status, q_detail = "warn", f"{n} jobs em andamento — pode demorar"
+    except Exception as e:
+        q_status, q_detail = "warn", str(e)
+    checks.append({"id": "queue", "label": "Fila", "status": q_status, "detail": q_detail})
+
+    # rollup
+    if any(c["status"] == "error" for c in checks):
+        overall = "error"
+    elif any(c["status"] == "warn" for c in checks):
+        overall = "warn"
+    else:
+        overall = "ok"
+
+    return {"overall": overall, "checks": checks}
 
 
 # ---------- auth ----------
