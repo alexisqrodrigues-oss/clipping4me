@@ -32,12 +32,12 @@ Sem `ADMIN_BOOTSTRAP_PASSWORD`, uma senha aleatória é gerada e impressa **uma 
 
 Saída esperada:
 ```
-Uvicorn running on http://0.0.0.0:8000
+Uvicorn running on http://0.0.0.0:8765
 ```
 
 Teste:
 ```bash
-curl http://localhost:8000/health
+curl http://localhost:8765/health
 # {"ok": true}
 ```
 
@@ -108,4 +108,4 @@ POST /jobs/upload   (upload de vídeo)    │
 - **`yt-dlp: HTTP 403`** → atualize: `brew upgrade yt-dlp`.
 - **Whisper muito lento** → use `WHISPER_MODEL=base` ou `tiny`.
 - **LLM devolve JSON inválido** → o backend já faz fallback; se persistir, troque o modelo (`qwen2.5:7b` costuma ser mais obediente).
-- **UI continua em "modo demo"** → confira `curl http://localhost:8000/health` e se o tunnel do Cloudflare está ativo para `api.clipping4.me`.
+- **UI continua em "modo demo"** → confira `curl http://localhost:8765/health` e se o tunnel do Cloudflare está ativo para `api.clipping4.me`.

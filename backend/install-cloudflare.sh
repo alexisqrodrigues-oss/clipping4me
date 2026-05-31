@@ -4,7 +4,7 @@ set -euo pipefail
 DOMAIN="${CLIPPING4ME_DOMAIN:-clipping4.me}"
 API_HOSTNAME="${CLIPPING4ME_API_HOSTNAME:-api.${DOMAIN}}"
 TUNNEL_NAME="${CLIPPING4ME_CLOUDFLARE_TUNNEL_NAME:-clipping4me-api}"
-LOCAL_PORT="${CLIPPING4ME_BACKEND_PORT:-8000}"
+LOCAL_PORT="${CLIPPING4ME_BACKEND_PORT:-8765}"
 CF_DIR="$HOME/.cloudflared"
 
 log() { printf "\033[1;36m[cloudflare]\033[0m %s\n" "$*"; }

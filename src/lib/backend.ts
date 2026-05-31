@@ -105,7 +105,7 @@ function normalizeBackendUrl(url: string | null | undefined): string {
  * Retorna a URL do backend.
  *
  * - Em produção (clipping4.me): sempre https://api.clipping4.me (ignora override)
- * - Em localhost/preview: usa http://127.0.0.1:8000 por padrão, mas permite
+ * - Em localhost/preview: usa http://127.0.0.1:8765 por padrão, mas permite
  *   override via query param ?backend= (útil pro .command local)
  */
 export function getBackendUrl(): string {
