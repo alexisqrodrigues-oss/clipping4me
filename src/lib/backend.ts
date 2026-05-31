@@ -83,17 +83,23 @@ function isProductionHost(): boolean {
   return host === "clipping4.me" || host === "www.clipping4.me";
 }
 
+function isLocalBrowserHost(): boolean {
+  if (typeof window === "undefined") return false;
+  const host = window.location.hostname;
+  return host === "localhost" || host === "127.0.0.1";
+}
+
 function getDefaultBackendUrl(): string {
   // Build-time override (CI/CD / env)
   const envUrl = (import.meta.env.VITE_BACKEND_URL as string | undefined);
   if (envUrl) return envUrl;
 
-  // Em localhost/preview aponta pro backend local automaticamente
-  if (!isProductionHost()) {
+  // Desenvolvimento local no navegador pode falar com o backend local.
+  if (isLocalBrowserHost()) {
     return "http://127.0.0.1:8765";
   }
 
-  // Produção: domínio público via Cloudflare Tunnel
+  // Preview hospedado e produção devem usar o backend público.
   return "https://api.clipping4.me";
 }
 
@@ -105,7 +111,9 @@ function normalizeBackendUrl(url: string | null | undefined): string {
  * Retorna a URL do backend.
  *
  * - Em produção (clipping4.me): sempre https://api.clipping4.me (ignora override)
- * - Em localhost/preview: usa http://127.0.0.1:8765 por padrão, mas permite
+ * - Em localhost: usa http://127.0.0.1:8765 por padrão, mas permite
+ *   override via query param ?backend=
+ * - Em preview hospedado / produção: usa https://api.clipping4.me
  *   override via query param ?backend= (útil pro .command local)
  */
 export function getBackendUrl(): string {
