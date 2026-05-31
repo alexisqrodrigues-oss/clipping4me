@@ -4,9 +4,15 @@ cd "$(dirname "$0")"
 
 PYTHON_BIN=""
 for candidate in \
+  "/opt/homebrew/opt/python@3.12/bin/python3.12" \
   "/opt/homebrew/opt/python@3.11/bin/python3.11" \
+  "/opt/homebrew/opt/python@3.10/bin/python3.10" \
+  "/usr/local/opt/python@3.12/bin/python3.12" \
   "/usr/local/opt/python@3.11/bin/python3.11" \
+  "/usr/local/opt/python@3.10/bin/python3.10" \
+  "python3.12" \
   "python3.11" \
+  "python3.10" \
   "python3"
 do
   if [ -x "$candidate" ]; then
@@ -20,7 +26,7 @@ do
 done
 
 if [ -z "$PYTHON_BIN" ]; then
-  echo "Python 3.11 não encontrado. Instale com: brew install python@3.11" >&2
+  echo "Python 3.10, 3.11 ou 3.12 não encontrado. Instale com: brew install python@3.12" >&2
   exit 1
 fi
 
@@ -28,7 +34,7 @@ PYTHON_VERSION="$($PYTHON_BIN -c 'import sys; print(f"{sys.version_info.major}.{
 case "$PYTHON_VERSION" in
   3.10|3.11|3.12) ;;
   *)
-    echo "Python $PYTHON_VERSION detectado. Use Python 3.11 para evitar falha ao instalar o Whisper." >&2
+    echo "Python $PYTHON_VERSION detectado. Use Python 3.10, 3.11 ou 3.12 para evitar falha ao instalar o Whisper." >&2
     exit 1
     ;;
 esac
