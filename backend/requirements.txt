@@ -6,3 +6,16 @@ openai-whisper==20240930
 httpx==0.27.2
 python-multipart==0.0.12
 bcrypt==4.2.0
+
+# Diarização (identificar quem fala) — opcional em runtime.
+# Para ativar, defina no backend/.env:
+#   USE_WHISPERX=true
+#   HF_TOKEN=hf_xxx
+# E aceite os termos em:
+#   https://huggingface.co/pyannote/segmentation-3.0
+#   https://huggingface.co/pyannote/speaker-diarization-3.1
+# Atenção: baixa modelos grandes (~3GB) e exige bastante RAM.
+whisperx==3.1.5
+pyannote.audio==3.3.2
+torch>=2.0.0
+torchaudio>=2.0.0
