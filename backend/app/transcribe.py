@@ -72,19 +72,20 @@ def _pick_device() -> str:
 
 
 def transcribe_diarized(audio_path: Path, language: str | None = None) -> List[Segment]:
-    """Transcrição com diarização via WhisperX (opt-in).
+    """Transcrição com diarização via WhisperX.
 
-    Requer: `pip install -r requirements.txt` (inclui whisperx/pyannote) +
-    HF_TOKEN no .env + aceitar termos em
+    Requer: `pip install -r requirements.txt` (inclui whisperx/pyannote),
+    HF_TOKEN configurado e termos aceitos em
     huggingface.co/pyannote/speaker-diarization-3.1.
 
-    Se USE_WHISPERX=false ou HF_TOKEN vazio, cai pro whisper normal (sem speakers).
+    Se USE_WHISPERX=false, cai pro whisper normal (sem speakers).
     """
     if not USE_WHISPERX:
         return transcribe(audio_path, language=language or WHISPER_LANGUAGE)
     if not HF_TOKEN:
-        # sem token não dá pra rodar pyannote; faz só transcrição
-        return transcribe(audio_path, language=language or WHISPER_LANGUAGE)
+        raise RuntimeError(
+            "HF_TOKEN não configurado. A diarização foi solicitada, mas o token do Hugging Face não está disponível."
+        )
 
     global _whisperx_model, _align_model, _diarize_model
     try:

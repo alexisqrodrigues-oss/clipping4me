@@ -4,7 +4,7 @@ Plataforma para gerar clipes curtos a partir de vídeos longos (YouTube, upload 
 
 - **Frontend (produção):** https://www.clipping4.me
 - **Frontend (preview):** https://clipping4me.lovable.app
-- **Backend público:** https://api.clipping4.me (tunnel para `localhost:8000` no seu Mac)
+- **Backend público:** https://api.clipping4.me (tunnel para `localhost:8765` no seu Mac)
 
 ## Arquitetura
 
@@ -15,7 +15,7 @@ Browser  ──►  www.clipping4.me (TanStack Start na Lovable)
          api.clipping4.me (Cloudflare Tunnel)
                │
                ▼
-         localhost:8000  (FastAPI no seu Mac)
+         localhost:8765  (FastAPI no seu Mac)
                │
                ├── ffmpeg / yt-dlp  → download + corte
                ├── openai-whisper   → transcrição
@@ -35,7 +35,7 @@ Browser  ──►  www.clipping4.me (TanStack Start na Lovable)
 - macOS com Homebrew
 - Conta Cloudflare com o domínio `clipping4.me` (ou outro que você ajuste)
 - ~5 GB livres (Whisper baixa ~500 MB no primeiro uso; modelos Ollama 4–8 GB)
-- Dependências Python: ver [`backend/requirements.txt`](backend/requirements.txt) e [`requirements.txt`](requirements.txt) na raiz (cópia para conveniência)
+- Dependências Python: use apenas [`backend/requirements.txt`](backend/requirements.txt).
 
 ## Setup rápido no Mac
 
@@ -85,10 +85,11 @@ bash backend/install-launchagent.sh
 |---|---|---|
 | `ADMIN_USERNAME` | `admin` | Usuário administrador inicial |
 | `ADMIN_BOOTSTRAP_PASSWORD` | (aleatória) | Senha gravada no primeiro start |
-| `OLLAMA_HOST` | `http://localhost:11434` | Endpoint do Ollama |
+| `OLLAMA_URL` | `http://localhost:11434` | Endpoint do Ollama |
 | `OLLAMA_MODEL` | `qwen2.5-coder:7b` | Modelo usado para sugerir clipes |
-| `WHISPER_MODEL` | `base` | Modelo Whisper (`tiny`/`base`/`small`/`medium`) |
-| `DATA_DIR` | `backend/data` | Pasta para jobs, mídia e DB sqlite |
+| `WHISPER_MODEL` | `small` | Modelo Whisper (`tiny`/`base`/`small`/`medium`) |
+| `CLIPPING4ME_ROOT` | `~/Clipping4me` | Pasta raiz para jobs, mídia e estado |
+| `HF_TOKEN` | (vazio) | Token necessário para diarização com WhisperX/pyannote |
 
 Para detalhes de cada arquivo do backend, ver [`backend/README.md`](backend/README.md) e [`backend/DEPLOY_MAC.md`](backend/DEPLOY_MAC.md).
 
@@ -98,7 +99,6 @@ Para detalhes de cada arquivo do backend, ver [`backend/README.md`](backend/READ
 clipping4me/
 ├── Clipping4Me.command         # atalho de duplo clique no Finder
 ├── run.sh                      # bootstrap (sobe Ollama + backend + UI)
-├── requirements.txt            # cópia das deps Python (espelho de backend/)
 ├── README.md
 ├── public/                     # ativos estáticos do frontend
 ├── src/                        # frontend TanStack Start
