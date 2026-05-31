@@ -1,4 +1,4 @@
-# Clipping4me — Backend no seu Mac
+# Clipping4me — Backend local
 
 Roda no seu Mac e expõe o backend em `https://api.clipping4.me` via Cloudflare Tunnel.
 
@@ -26,7 +26,7 @@ cd /Users/axis/Dev/clipping4me/backend
 ADMIN_BOOTSTRAP_PASSWORD='SuaSenhaForte' bash run.sh
 ```
 
-Na primeira execução o `run.sh` prefere Python 3.11, cria `.venv`, instala tudo e cria um usuário admin (`admin` por padrão) com a senha que você passar em `ADMIN_BOOTSTRAP_PASSWORD`. Whisper baixa ~500MB do modelo na primeira transcrição.
+Na primeira execução o `run.sh` exige Python 3.10–3.12, cria `.venv`, instala tudo e cria um usuário admin (`admin` por padrão) com a senha que você passar em `ADMIN_BOOTSTRAP_PASSWORD`. Whisper baixa ~500MB do modelo na primeira transcrição.
 
 Sem `ADMIN_BOOTSTRAP_PASSWORD`, uma senha aleatória é gerada e impressa **uma vez** no log — anote.
 
@@ -79,6 +79,8 @@ Tudo fica em `~/Clipping4me/` por padrão, com o repo em `/Users/axis/Dev/clippi
 | `OLLAMA_MODEL` | `qwen2.5-coder:7b` | modelo usado para escolher cortes |
 | `FRONTEND_URL` | `https://clipping4.me` | frontend autorizado no CORS |
 | `WHISPER_MODEL` | `small` | `tiny`, `base`, `small`, `medium`, `large` |
+| `HF_TOKEN` | (vazio) | habilita diarização via WhisperX/pyannote |
+| `USE_WHISPERX` | derivado de `HF_TOKEN` | força diarização ligada/desligada se necessário |
 | `MAX_CLIPS` | `8` | máximo de cortes por job |
 | `CLIP_MIN_SEC` / `CLIP_MAX_SEC` | `30` / `90` | duração-alvo dos cortes |
 
@@ -108,4 +110,4 @@ POST /jobs/upload   (upload de vídeo)    │
 - **`yt-dlp: HTTP 403`** → atualize: `brew upgrade yt-dlp`.
 - **Whisper muito lento** → use `WHISPER_MODEL=base` ou `tiny`.
 - **LLM devolve JSON inválido** → o backend já faz fallback; se persistir, troque o modelo (`qwen2.5:7b` costuma ser mais obediente).
-- **UI continua em "modo demo"** → confira `curl http://localhost:8765/health` e se o tunnel do Cloudflare está ativo para `api.clipping4.me`.
+- **A UI não consegue conectar** → confira `curl http://localhost:8765/health`, valide o `HF_TOKEN` se a diarização for esperada e confirme que `api.clipping4.me` não está retornando erro 530/1033 no Cloudflare.
