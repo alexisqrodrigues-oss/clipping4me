@@ -74,8 +74,9 @@ def _pick_device() -> str:
 def transcribe_diarized(audio_path: Path, language: str | None = None) -> List[Segment]:
     """Transcrição com diarização via WhisperX (opt-in).
 
-    Requer: `pip install -r requirements-diarize.txt` + HF_TOKEN no .env +
-    aceitar termos em huggingface.co/pyannote/speaker-diarization-3.1.
+    Requer: `pip install -r requirements.txt` (inclui whisperx/pyannote) +
+    HF_TOKEN no .env + aceitar termos em
+    huggingface.co/pyannote/speaker-diarization-3.1.
 
     Se USE_WHISPERX=false ou HF_TOKEN vazio, cai pro whisper normal (sem speakers).
     """
@@ -90,7 +91,7 @@ def transcribe_diarized(audio_path: Path, language: str | None = None) -> List[S
         import whisperx  # type: ignore
     except ImportError as e:
         raise RuntimeError(
-            "WhisperX não instalado. Rode: pip install -r backend/requirements-diarize.txt"
+            "WhisperX não instalado. Rode: pip install -r backend/requirements.txt"
         ) from e
 
     device = _pick_device()
