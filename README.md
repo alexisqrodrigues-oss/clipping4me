@@ -35,7 +35,7 @@ Browser  ──►  www.clipping4.me (TanStack Start na Lovable)
 - macOS com Homebrew
 - Conta Cloudflare com o domínio `clipping4.me` (ou outro que você ajuste)
 - ~5 GB livres (Whisper baixa ~500 MB no primeiro uso; modelos Ollama 4–8 GB)
-- Dependências Python: a fonte canônica é [`backend/requirements.txt`](backend/requirements.txt). O `requirements.txt` da raiz é apenas espelho de conveniência.
+- Dependências Python: use apenas [`backend/requirements.txt`](backend/requirements.txt).
 
 ## Setup rápido no Mac
 
@@ -99,7 +99,6 @@ Para detalhes de cada arquivo do backend, ver [`backend/README.md`](backend/READ
 clipping4me/
 ├── Clipping4Me.command         # atalho de duplo clique no Finder
 ├── run.sh                      # bootstrap (sobe Ollama + backend + UI)
-├── requirements.txt            # cópia das deps Python (espelho de backend/)
 ├── README.md
 ├── public/                     # ativos estáticos do frontend
 ├── src/                        # frontend TanStack Start
