@@ -31,13 +31,13 @@ ADMIN_BOOTSTRAP_PASSWORD='SuaSenhaForte123' bash run.sh
 
 O `run.sh` já tenta usar Python 3.11 automaticamente e aplica o workaround do Whisper no macOS.
 
-Espere ver `Uvicorn running on http://0.0.0.0:8000`. Em outro terminal:
+Espere ver `Uvicorn running on http://0.0.0.0:8765`. Em outro terminal:
 
 ```bash
-curl http://localhost:8000/health
+curl http://localhost:8765/health
 # {"ok": true}
 
-curl -X POST http://localhost:8000/auth/login \
+curl -X POST http://localhost:8765/auth/login \
   -H "Content-Type: application/json" \
   -d '{"username":"admin","password":"SuaSenhaForte123"}'
 # {"token": "...", "user": {...}}
