@@ -64,3 +64,10 @@ def update_job(job_id: str, **fields) -> Job | None:
         raw[job_id].update(fields)
         _write_raw(raw)
         return Job(**raw[job_id])
+
+
+def delete_job(job_id: str) -> None:
+    with _lock:
+        raw = _read_raw()
+        raw.pop(job_id, None)
+        _write_raw(raw)
