@@ -417,3 +417,59 @@ export async function checkHealth(): Promise<boolean> {
     return false;
   }
 }
+
+/* ---------- health detalhado ---------- */
+
+export type HealthStatus = "ok" | "warn" | "error";
+
+export interface HealthCheck {
+  id: string;
+  label: string;
+  status: HealthStatus;
+  detail: string;
+}
+
+export interface HealthFull {
+  overall: HealthStatus;
+  checks: HealthCheck[];
+  reachable: boolean;
+}
+
+export async function checkHealthFull(): Promise<HealthFull> {
+  try {
+    const res = await fetch(`${getBackendUrl()}/health/full`, {
+      method: "GET",
+      headers: { "ngrok-skip-browser-warning": "true" },
+      signal: AbortSignal.timeout(8000),
+    });
+    if (!res.ok) {
+      return {
+        overall: "error",
+        reachable: false,
+        checks: [
+          {
+            id: "api",
+            label: "API",
+            status: "error",
+            detail: `respondeu ${res.status}`,
+          },
+        ],
+      };
+    }
+    const data = (await res.json()) as { overall: HealthStatus; checks: HealthCheck[] };
+    return { ...data, reachable: true };
+  } catch (e) {
+    return {
+      overall: "error",
+      reachable: false,
+      checks: [
+        {
+          id: "api",
+          label: "API",
+          status: "error",
+          detail: e instanceof Error ? e.message : "sem resposta",
+        },
+      ],
+    };
+  }
+}
